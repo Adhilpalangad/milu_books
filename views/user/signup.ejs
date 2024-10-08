@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signup</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container vh-100 d-flex align-items-center justify-content-center">
+        <div class="col-md-6">
+            <h3 class="text-center mb-4">Signup</h3>
+            <% if (error) { %>
+                <div class="alert alert-danger"><%= error %></div>
+            <% } %>
+            <% if (message) { %>
+                <div class="alert alert-success"><%= message %></div>
+            <% } %>
+            <form action="/signup" method="POST">
+                <div class="form-row">
+                    <div class="form-group col-md-12">
+                        <label for="name">Name:</label>
+                        <input type="text" class="form-control" id="name" name="name" required pattern="[A-Za-z\s]{1,50}" title="Name should only contain letters and spaces, and be between 1 and 50 characters long.">
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="email">Email:</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-md-12">
+                        <label for="password">Password:</label>
+                        <input type="password" class="form-control" id="password" name="password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}" title="Password must be at least 8 characters long, include at least one lowercase letter, one uppercase letter, and one number.">
+                    </div>
+                    <div class="form-group col-md-12">
+                        <label for="confirmPassword">Confirm Password:</label>
+                        <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}" title="Password must be at least 8 characters long, include at least one lowercase letter, one uppercase letter, and one number.">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Sign up</button>
+                <p class="text-center mt-3">Already have an account? <a href="/login">Login</a></p>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

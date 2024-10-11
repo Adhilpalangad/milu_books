@@ -1200,7 +1200,9 @@ Input, textarea : 14px/1.6 '', Arial, sans-serif;
   content: "\f0d7";
 }
 
-
+.item-slick3{
+  width: 404px;
+}
 
 /*//////////////////////////////////////////////////////////////////
 [ Slick1 ]*/
@@ -1272,7 +1274,7 @@ Input, textarea : 14px/1.6 '', Arial, sans-serif;
 }
 
 .prev-slick1 {
-  left: 50px;
+  left: -10px;
   right: auto;
 }
 
@@ -1403,6 +1405,7 @@ Input, textarea : 14px/1.6 '', Arial, sans-serif;
   color: #666;
 }
 
+
 .next-slick2 {
   right: -40px;
 }
@@ -1437,9 +1440,20 @@ Input, textarea : 14px/1.6 '', Arial, sans-serif;
   top: calc(50% - 20px);
 }
 
+.wrap-pic-w {
+  max-width: 300px; /* Set a maximum width for the image wrapper */
+  overflow: hidden; /* Hide any overflow */
+}
+
+.wrap-pic-w img {
+  width: 100%; /* Set image width to 100% of the wrapper */
+  height: auto; /* Maintain aspect ratio */
+}
+
 .arrow-slick3 {
   font-size: 25px;
   color: #fff;
+
   
   position: absolute;
   top: 0;
@@ -1457,14 +1471,51 @@ Input, textarea : 14px/1.6 '', Arial, sans-serif;
   background-color: rgba(0,0,0,0.9);
 }
 
-.prev-slick3 {left: 0px;}
-.next-slick3 {right: 0px;}
+.icon-row {
+  display: flex;               /* Arrange items in a row */
+  justify-content: space-between; /* Add space between images */
+  align-items: center;         /* Vertically center the icons */
+}
+
+.icon {
+  width: 50px;                 /* Adjust the size of the icons */
+  height: 50px;                /* Ensure the icons are square */
+  object-fit: cover;           /* Ensures the image covers the area */
+  margin: 0 5px;               /* Optional: Add margin between images */
+}
+.custom-div {
+  background-color: white;          /* Inner white background */
+  border: 1px solid grey;           /* Grey border */
+  padding: 10px;                    /* Padding inside the div */
+  display: inline-block;            /* Keeps the div's size around its content */
+  border-radius: 5px;               /* Optional: Rounded corners */
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.small-text {
+  font-size: 12px;                  /* Small font size for the text */
+  color: black;                     /* Text color */
+  margin: 0;                        /* Removes default margin of <p> */
+}
+
+.prev-slick3 {left: -10px;}
+.next-slick3 {right: 109px;}
 
 /*---------------------------------------------*/
 .wrap-slick3-dots {
   width: 11.111111%;
 }
 
+/* .col-md-6{
+  left: -245px; */
+
+.flex-c-m{
+  margin-top: -20px;
+}
+.wrap-pic-w {
+  width: 400px;
+}
 .slick3 {
   width: 83.333333%;
 }
@@ -2040,6 +2091,32 @@ input.num-product::-webkit-inner-spin-button {
 
 /*//////////////////////////////////////////////////////////////////
 [ Block2 ]*/
+
+.block2-pic {
+  width: 100%;          /* Ensures the block takes the full width of the container */
+  height: 250px;        /* Set a fixed height for the product image */
+  position: relative;   /* Ensure proper positioning for the Quick View button */
+  overflow: hidden;     /* Ensure the image doesn't overflow the container */
+}
+
+.block2-pic img {
+  width: 100%;          /* Make the image fill the width of the container */
+  height: 100%;         /* Make the image fill the height */
+  object-fit: cover;    /* Ensures the image covers the container without distortion */
+}
+
+.block2 {
+  width: 100%;          /* Make sure the product block is responsive */
+  max-width: 250px;     /* Define a maximum width for each product block */
+  margin: 0 auto;       /* Center the block if needed */
+}
+
+.block2-txt {
+  height: auto;         /* Adjust height to content */
+  padding: 15px 10px;   /* Add some padding to the text */
+  text-align: center;   /* Center-align the text */
+}
+
 .block2-pic {
   position: relative;
 }

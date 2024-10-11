@@ -8,7 +8,10 @@ const userSchema = new mongoose.Schema({
     googleId: { type: String }, // New field for Google ID
     isAdmin: { type: Boolean, required: true, default: false },
     isBlocked: { type: Boolean, required: true, default: false },
+    otp: String,
+    otpExpires: Date
 });
+
 
 // Hash password before saving (if applicable)
 userSchema.pre('save', async function(next) {

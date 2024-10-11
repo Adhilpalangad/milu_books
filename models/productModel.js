@@ -21,12 +21,16 @@ const bookSchema = new mongoose.Schema({
         type: Number, // Price of the book
         required: true
     },
+    stock: {
+        type: Number,
+        required: true
+    },
     isActive: {
         type: Boolean,
         default: true // Default value for isActive is true
     },
     categoryId: {
-        type: mongoose.Schema.Types.ObjectId, // Reference to the Category collection
+        type:mongoose.Schema.Types.ObjectId, // Reference to the Category collection
         required: true,
         ref:'Category'
     }

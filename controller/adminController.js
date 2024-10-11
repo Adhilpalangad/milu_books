@@ -1,5 +1,6 @@
 const User = require("../models/userModel");
 const Book = require('../models/productModel'); // Ensure the path is correct
+const bcrypt = require('bcrypt')
 const multer = require('multer');
 const path = require('path');
 const upload = require('../config/multerConfig');
@@ -7,6 +8,48 @@ const mongoose = require("mongoose")
 const fs = require('fs');
 const Category = require('../models/categoryModel');
 // Initialize multer for image uploads
+
+
+const login = (req, res) => {
+    try {
+        res.render("admin/login", {error:""})
+    } catch (error) {
+        console.log("admin login broke",error)
+    }
+}
+
+const postLogin = async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        // Check if the user exists and is an admin
+        const user = await User.findOne({ email: email, isAdmin: true });
+
+        if (user) {
+            // Compare the provided password with the stored hashed password
+            const isMatch = await bcrypt.compare(password, user.password);
+
+            if (isMatch) {
+                // Store admin information in session
+                req.session.admin = {
+                    id: user._id,
+                    email: user.email
+                };
+
+                // Redirect to admin home page after successful login
+                return res.redirect('/admin/home');
+            } else {
+                // Invalid password
+                return res.render('admin/login', { error: 'Invalid email or password.' });
+            }
+        } else {
+            // Admin not found
+            return res.render('admin/login', { error: 'Admin account not found.' });
+        }
+    } catch (error) {
+        console.error('Login error:', error); // Log the error for debugging
+        return res.render('admin/login', { error: 'An error occurred. Please try again.' });
+    }
+};
 
 // Admin users management
 const adminUsers = async (req, res) => {
@@ -83,23 +126,30 @@ const unblockUser = async (req, res) => {
     // Add books
     const addBooks = async (req, res) => {
         try {
-            const { title, author, description, price, categoryId } = req.body;
-            const images = req.files; // This will contain an array of the uploaded images
-            console.log('img', images);
-            console.log(categoryId);
-            console.log('here1');
-            
+            console.log('Form Data:', req.body);
+    
+            const { title, author, description, price, stock, categoryId } = req.body;
+            const images = req.files;
+    
+            // Server-side validation
+            if (!title || !author || !description || !price || !stock || !categoryId) {
+                return res.redirect('/admin/products?error=All fields are required');
+            }
+    
+            if (isNaN(price) || Number(price) <= 0) {
+                return res.redirect('/admin/products?error=Price must be a positive number');
+            }
+    
+            if (isNaN(stock) || Number(stock) < 0) {
+                return res.redirect('/admin/products?error=Stock must be a non-negative number');
+            }
+    
             // Check if images were uploaded
             if (!images || images.length === 0) {
-                res.redirect('/admin/products?error=No Image Uploaded');
+                return res.redirect('/admin/products?error=No Image Uploaded');
             }
-            console.log('here2');
-            // Check if the book already exists
-             ;
+    
             const existingBook = await Book.findOne({ title });
-            console.log('here3')
-            console.log('title is',existingBook);
-            console.log('here4')
             if (existingBook) {
                 return res.status(409).json({ message: 'Book with this title already exists.' });
             }
@@ -110,12 +160,11 @@ const unblockUser = async (req, res) => {
                 author,
                 description,
                 price,
+                stock,
                 images: images.map(img => img.filename),
                 categoryId,
-                // Save the image paths to the database
             });
     
-            // Save the book to the database
             await newBook.save();
     
             res.redirect('/admin/products?message=Book Added');
@@ -124,6 +173,7 @@ const unblockUser = async (req, res) => {
             res.redirect('/admin/products?error=Error Adding Book');
         }
     };
+    
     
     const getBooks = async (req, res) => {
         try {
@@ -141,7 +191,7 @@ const unblockUser = async (req, res) => {
                 .limit(limit);
     
             // Log the fetched books to see the populated category data
-            console.log(books); // Debugging output to inspect populated data
+            // Debugging output to inspect populated data
     
             // Get the total count of active books for pagination
             const totalBooks = await Book.countDocuments({ isActive: true });
@@ -155,7 +205,7 @@ const unblockUser = async (req, res) => {
                 currentPage: page,
                 totalPages,
                 limit,
-                categories: await Category.find() // Fetch categories to display in the view
+                categories: await Category.find({ isActive: true }) // Fetch categories to display in the view
             });
         } catch (error) {
             console.error('Error fetching books:', error);
@@ -167,57 +217,58 @@ const unblockUser = async (req, res) => {
     
     
 
-const editBooks = async (req, res) => {
-    try {
-        const { id, title, author, description, price, removeImages } = req.body;
-        const images = req.files; // This will contain an array of the uploaded images
-
-        // Validate and convert the ID to an ObjectId
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            res.redirect('/admin/products?error=Invalid book ID format');
-        }
-
-        // Query the database using the valid ObjectId
-        const book = await Book.findById(id);
-        
-        if (!book) {
-            res.redirect('/admin/products?error=Book Not Found');
-        }
-
-        // Update book details with new data or retain old values
-        book.title = title || book.title;
-        book.author = author || book.author;
-        book.description = description || book.description;
-        book.price = price || book.price;
-
-        // Handle image updates if new images are uploaded
-        if (images && images.length > 0) {
-            // Delete the old images from storage if they are marked for removal
-            if (removeImages) {
-                removeImages.forEach((image) => {
-                    const imagePath = path.join(__dirname, '../uploads', image);
-                    fs.unlink(imagePath, (err) => {
-                        if (err) {
-                            console.error(`Error deleting image: ${imagePath}`, err);
-                        }
-                    });
-                });
+    const editBooks = async (req, res) => {
+        try {
+            const { id, title, author, description, price, stock, removeImages } = req.body; // Add stock here
+            const images = req.files; // This will contain an array of the uploaded images
+    
+            // Validate and convert the ID to an ObjectId
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                return res.redirect('/admin/products?error=Invalid book ID format');
             }
-
-            // Save new image filenames
-            book.images = images.map(img => img.filename);
+    
+            // Query the database using the valid ObjectId
+            const book = await Book.findById(id);
+            
+            if (!book) {
+                return res.redirect('/admin/products?error=Book Not Found');
+            }
+    
+            // Update book details with new data or retain old values
+            book.title = title || book.title;
+            book.author = author || book.author;
+            book.description = description || book.description;
+            book.price = price || book.price;
+            book.stock = stock || book.stock; // Update stock
+    
+            // Handle image updates if new images are uploaded
+            if (images && images.length > 0) {
+                // Delete the old images from storage if they are marked for removal
+                if (removeImages) {
+                    removeImages.forEach((image) => {
+                        const imagePath = path.join(__dirname, '../uploads', image);
+                        fs.unlink(imagePath, (err) => {
+                            if (err) {
+                                console.error(`Error deleting image: ${imagePath}`, err);
+                            }
+                        });
+                    });
+                }
+    
+                // Save new image filenames
+                book.images = images.map(img => img.filename);
+            }
+    
+            // Save the updated book to the database
+            await book.save();
+    
+            res.redirect('/admin/products?message=Book Updated');
+        } catch (error) {
+            console.error('Error updating book:', error);
+            res.redirect('/admin/products?error=Error updating book');
         }
-
-        // Save the updated book to the database
-        await book.save();
-
-        res.redirect('/admin/products?message=Book Updated');
-    } catch (error) {
-        console.error('Error updating book:', error);
-        res.redirect('/admin/products?error=Error updating book');
-    }
-};
-
+    };
+    
 
 const deleleBook = async (req, res) => {
     try {
@@ -249,10 +300,15 @@ const addCategory = async (req, res) => {
         const existingBook = await Category.findOne({ name });
         if (existingBook) {
             return res.redirect('/admin/category?error=Book with this title already exists.');
-            }
+        }
+        const validNamePattern = /^[A-Za-z\s]+$/; // Allows only letters and spaces
+        if (!validNamePattern.test(name)) {
+            return res.redirect('/admin/category?error=Category name can only contain letters and spaces.');
+            
+        }
         // Check if the category name is provided
         if (!name || name.trim() === '') {
-            return res.status(400).json({ message: 'Category name is required.' });
+            res.redirect('/admin/category?error=Category name is required.');
         }
         
 
@@ -309,7 +365,7 @@ const getEditCategory = async (req, res) => {
         const category = await Category.findById(id);
         
         if (!category) {
-            return res.status(404).send('Category not found');
+            res.redirect('/admin/category?error=Category not found');
         }
 
         res.render('admin/editCategory', { category,message,error });
@@ -330,29 +386,38 @@ const editCategory = async (req, res) => {
             return res.redirect(`/admin/editCategory/${id}?error=Category name is required.`);
         }
 
+        const trimmedName = name.trim();
+
+        // Find the existing category to compare with
+        const existingCategory = await Category.findById(id);
+        if (!existingCategory) {
+            return res.status(404).send('Category not found');
+        }
+
+        // Check if the new name is the same as the existing name
+        if (existingCategory.name.trim().toLowerCase() === trimmedName.toLowerCase()) {
+            return res.redirect(`/admin/editCategory/${id}?error=No changes made to the category name.`);
+        }
+
         // Check if the category name already exists (case-insensitive)
-        const existingCategory = await Category.findOne({
-            name: { $regex: new RegExp(`^${name.trim()}$`, 'i') }, // Case-insensitive match
+        const duplicateCategory = await Category.findOne({
+            name: { $regex: new RegExp(`^${trimmedName}$`, 'i') }, // Case-insensitive match
             _id: { $ne: id } // Exclude the current category being edited
         });
 
-        if (existingCategory) {
+        if (duplicateCategory) {
             // If a category with the same name exists, send a message to the client
             return res.redirect(`/admin/editCategory/${id}?error=Category with this name already exists.`);
         }
 
-        // Find the category by ID and update it with the new name
+    
         const updatedCategory = await Category.findByIdAndUpdate(
             id,
-            { name: name.trim() }, // Trim any extra white spaces from the name
-            { new: true } // Return the updated category
+            { name: trimmedName }, 
+            { new: true } 
         );
 
-        if (!updatedCategory) {
-            return res.status(404).send('Category not found');
-        }
 
-        // Redirect to the categories page with a success message
         res.redirect('/admin/category?message=Category Updated');
     } catch (error) {
         console.error('Error updating category:', error);
@@ -378,5 +443,7 @@ module.exports = {
     getCategory,
     deleleCategory,
     editCategory,
-    getEditCategory
+    getEditCategory,
+    login,
+    postLogin
 };

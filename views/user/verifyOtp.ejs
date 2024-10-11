@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        #timerDisplay {
+            color: #dc3545; /* Bootstrap danger color */
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container vh-100 d-flex align-items-center justify-content-center">
+        <div class="col-md-6">
+            <h3 class="text-center mb-4">Verify OTP</h3>
+            <% if (error) { %>
+                <div class="alert alert-danger"><%= error %></div>
+            <% } %>
+            <form action="/verify-otp" method="POST">
+                <div class="form-group">
+                    <label for="otp">Enter the OTP sent to your email:</label>
+                    <input type="text" class="form-control" id="otp" name="otp" required pattern="\d{6}" title="Enter the 6-digit OTP sent to your email.">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Verify OTP</button>
+                <button type="button" id="resendOTPBtn" class="btn btn-link">Resend OTP</button>
+                <p class="text-center mt-3">Didn't receive an OTP? <a href="/signup">Resend</a></p>
+                <div id="timerDisplay"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let countdown = parseInt(localStorage.getItem('otpCountdown')) || 60; // Retrieve countdown value from local storage or set to default (60 seconds)
+            const timerDisplay = document.getElementById('timerDisplay');
+
+            function updateTimerDisplay() {
+                const minutes = Math.floor(countdown / 60);
+                const seconds = countdown % 60;
+                timerDisplay.textContent = `Time remaining: ${minutes}:${seconds < 10 ? '0' : ''}${seconds} seconds`;
+            }
+
+            function startTimer() {
+                const timer = setInterval(function () {
+                    countdown--;
+                    updateTimerDisplay();
+                    localStorage.setItem('otpCountdown', countdown); // Store countdown value in local storage
+
+                    if (countdown <= 0) {
+                        clearInterval(timer);
+                        countdown = 0;
+                        updateTimerDisplay();
+                        localStorage.removeItem('otpCountdown'); // Clear the countdown from local storage
+                    }
+                }, 1000);
+            }
+
+            updateTimerDisplay(); // Initial display
+            startTimer(); // Start the timer when the page loads
+
+            const resendButton = document.getElementById('resendOTPBtn');
+
+            resendButton.addEventListener('click', function () {
+                const email = '<%= email %>'; // Get the user's email
+                fetch('/resend-otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email }), // Send the email in the request body
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message); // Show success message
+                        countdown = 60; // Reset countdown timer
+                        updateTimerDisplay(); // Update the timer display
+                    } else {
+                        alert(data.message); // Show error message
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error resending OTP. Please try again.');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

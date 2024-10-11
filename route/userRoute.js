@@ -1,41 +1,45 @@
 const express = require('express');
-const passport = require('passport'); // Import passport
+const passport = require('passport'); 
 const router = express.Router();
 const userController = require('../controller/userController');
+const userAuth = require("../middileware/user/userAuth");
+const userAuthed = require("../middileware/user/userAuthed")
+router.get('/',userAuthed,userController.getLand)
 
-// Landing Page
-router.get('/', (req, res) => {
-    res.render('user/landing');
-});
-
-// Signup Page
-router.get('/signup', (req, res) => {
+router.get('/signup',userAuthed, (req, res) => {
     res.render('user/signup', { error: null, message: null });
 });
 
-// Google Authentication
 router.get('/auth/google', passport.authenticate('google', {
-    scope: ['profile', 'email'], // Scope to request user profile and email
+    scope: ['profile', 'email'], 
 }));
 
-// Google Callback
-router.get('/auth/google/callback', passport.authenticate('google', {
-    failureRedirect: '/login', // Redirect to login if authentication fails
-}), (req, res) => {
-    // Successful authentication, redirect to desired page
-    res.redirect('/'); // Change this to your desired route after login
-});
+router.get('/auth/google/callback', 
+    passport.authenticate('google', {
+        failureRedirect: '/login?error=Authentication failed', 
+    }), 
+    userController.googleLogin 
+);
 
-// Login Page
-router.get('/login', (req, res) => {
-    res.render('user/login', { error: null });
-});
 
-// Products Page
-router.get('/products', userController.getProducts);
 
-// Signup and Login Handlers
+router.get('/login',userAuthed, (req, res) => {
+    res.render('user/login',{ error:"",message:""});
+    });
+    
+router.get('/home',userAuth,userController.getHome)
+router.get('/products',userAuth, userController.getProducts);
+router.get('/product-detail/:id',userAuth, userController.getProductDetail);
 router.post('/signup', userController.userSignup);
 router.post('/login', userController.userLogin);
+router.post('/logout', (req, res) => {
+    req.session.destroy()
+        
+    return res.redirect('/login'); // Handle the error appropriately
+});
+router.post('/verify-otp', userController.verifyOtp);
+router.get('/verify-otp',userController.verifyOtpPage)      
+router.post('/resend-otp', userController.resendOtp);  
+
 
 module.exports = router;

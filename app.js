@@ -24,12 +24,28 @@ app.use(session({
     cookie: { secure: false } // Set secure to true in production with HTTPS
 }));
 
+app.use((req, res, next) => {
+    res.locals.session = req.session; // Make session data available in views
+    next();
+});
+
 app.use(passport.initialize());
 app.use(passport.session());
 
 // Serve static files from the "public" and "uploads" directories
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'uploads')));
+
+// Middleware to disable cache for sensitive routes
+const nocache = (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+  };
+  
+  // Apply cache control for sensitive routes
+  app.use(['/login', '/home' ,'/admin','/admin/home'], nocache);
 
 // Set up view engine
 app.set("views", path.join(__dirname, "views"));
@@ -39,8 +55,7 @@ app.set("view engine", "ejs");
 app.use('/', userRoute);
 app.use('/admin', adminRoute);
 
-// Example route
-app.get('/', (req, res) => res.send('Hello World!'));
+
 
 // Start the server
 app.listen(port, () => console.log(`App listening on port ${port}!`));

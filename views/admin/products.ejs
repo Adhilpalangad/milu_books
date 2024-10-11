@@ -93,138 +93,227 @@
                                             <form id="addBookForm" action="/admin/addBooks" method="POST" enctype="multipart/form-data">
                                                 <div class="mb-3">
                                                     <label for="bookTitle" class="form-label">Book Title</label>
-                                                    <input type="text" class="form-control" id="bookTitle" name="title" required>
+                                                    <input type="text" class="form-control" id="bookTitle" name="title">
+                                                    <small id="titleError" class="text-danger"></small>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label for="bookAuthor" class="form-label">Author</label>
-                                                    <input type="text" class="form-control" id="bookAuthor" name="author" required>
+                                                    <input type="text" class="form-control" id="bookAuthor" name="author">
+                                                    <small id="authorError" class="text-danger"></small>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label for="bookDescription" class="form-label">Description</label>
-                                                    <textarea class="form-control" id="bookDescription" name="description" rows="3" required></textarea>
+                                                    <textarea class="form-control" id="bookDescription" name="description" rows="3"></textarea>
+                                                    <small id="descriptionError" class="text-danger"></small>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label for="bookPrice" class="form-label">Price</label>
-                                                    <input type="number" class="form-control" id="bookPrice" name="price" required step="0.01">
+                                                    <input type="number" class="form-control" id="bookPrice" name="price" step="0.01">
+                                                    <small id="priceError" class="text-danger"></small>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="bookStock" class="form-label">Stock</label>
+                                                    <input type="number" class="form-control" id="bookStock" name="stock">
+                                                    <small id="stockError" class="text-danger"></small>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label for="bookCategory" class="form-label">Category</label>
-                                                    <select class="form-control" id="bookCategory" name="categoryId" required>
+                                                    <select class="form-control" id="bookCategory" name="categoryId">
                                                         <option value="">Select a Category</option>
                                                         <% categories.forEach(category => { %>
                                                             <option value="<%= category._id %>"><%= category.name %></option>
                                                         <% }) %>
                                                     </select>
+                                                    <small id="categoryError" class="text-danger"></small>
                                                 </div>
                                                 <div class="mb-3">
                                                     <label for="bookImages" class="form-label">Upload Book Cover Images (3 required)</label>
-                                                    <input type="file" class="form-control" id="bookImage1" name="images" accept="image/*" required>
-                                                    <input type="file" class="form-control mt-2" id="bookImage2" name="images" accept="image/*" required>
-                                                    <input type="file" class="form-control mt-2" id="bookImage3" name="images" accept="image/*" required>
+                                                    <input type="file" class="form-control" id="bookImage1" name="images" accept="image/*">
+                                                    <input type="file" class="form-control mt-2" id="bookImage2" name="images" accept="image/*">
+                                                    <input type="file" class="form-control mt-2" id="bookImage3" name="images" accept="image/*">
+                                                    <small id="imagesError" class="text-danger"></small>
                                                 </div>
-                            
-                                                <!-- Container for Image Previews and Cropping -->
+                                                
+                                                <!-- Image Previews and Cropping -->
                                                 <div id="image-preview-container" style="display: none;">
                                                     <h5>Crop the images:</h5>
                                                     <div id="imagePreviews"></div>
                                                 </div>
                             
-                                                <button type="submit" class="btn btn-primary">Add Book</button>
+                                                <button type="submit" class="btn btn-primary" id="submitBtn">Add Book</button>
                                             </form>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            
+                            </div>                       
                             <script>
                                 let cropperInstances = [];
-                            
-                                document.addEventListener('DOMContentLoaded', () => {
-                                    const imagePreviewContainer = document.getElementById('image-preview-container');
-                                    const imagePreviewsDiv = document.getElementById('imagePreviews');
-                                    const addBookForm = document.getElementById('addBookForm');
-                            
-                                    // Listen for file changes on each input
-                                    const fileInputs = document.querySelectorAll('input[type=file][name=images]');
-                                    fileInputs.forEach((input, index) => {
-                                        input.addEventListener('change', function (event) {
-                                            const file = event.target.files[0]; // Get the first file selected
-                                            if (file) {
-                                                const reader = new FileReader();
-                                                reader.onload = (e) => {
-                                                    const img = document.createElement('img');
-                                                    img.src = e.target.result;
-                                                    img.style.maxWidth = '100%';
-                                                    img.id = `imagePreview${index}`; // Use backticks for dynamic id
-                                                    imagePreviewsDiv.innerHTML = ''; // Clear previous previews
-                                                    imagePreviewsDiv.appendChild(img);
-                            
-                                                    // Initialize the cropper for the uploaded image
-                                                    const cropper = new Cropper(img, {
-                                                    viewMode: 1, // Keep the view mode as you wish
-                                                    ready() {
-                                                    cropperInstances[index] = cropper; // Store the cropper instance
-                                                    }
-                                                });
 
-                                                };
-                                                reader.readAsDataURL(file);
-                                                imagePreviewContainer.style.display = 'block'; // Show the preview container
-                                            }
-                                        });
-                                    });
-                            
-                                    addBookForm.addEventListener('submit', async function (event) {
-                                        event.preventDefault(); // Prevent the default form submission
-                                        const formData = new FormData();
-                            
-                                        // Append other form fields
-                                        formData.append('title', document.getElementById('bookTitle').value);
-                                        formData.append('author', document.getElementById('bookAuthor').value);
-                                        formData.append('description', document.getElementById('bookDescription').value);
-                                        formData.append('price', document.getElementById('bookPrice').value);
-                            
-                                        // Append the categoryId
-                                        const categoryId = document.getElementById('bookCategory').value;  // Get the selected categoryId
-                                        formData.append('categoryId', categoryId);  // Append it to formData
-                            
-                                        // Array to hold promises for cropped images
-                                        const promises = cropperInstances.map((cropper, index) => {
-                                            return new Promise((resolve) => {
-                                                if (cropper) {
-                                                    cropper.getCroppedCanvas().toBlob((blob) => {
-                                                        if (blob) {
-                                                            formData.append('images', blob, `cropped-image-${index}.jpg`); // Ensure unique image names
-                                                        }
-                                                        resolve(); // Resolve the promise when done
-                                                    });
-                                                } else {
-                                                    resolve(); // Resolve immediately if no cropper
-                                                }
-                                            });
-                                        });
-                            
-                                        // Wait for all cropping promises to resolve
-                                        await Promise.all(promises);
-                            
-                                        // Send the form data to the server
-                                        fetch('/admin/addBooks', {
-                                            method: 'POST',
-                                            body: formData
-                                        }).then(response => {
-                                            if (response.ok) {
-                                                alert('Book added successfully!');
-                                                location.reload(); // Reload the page or handle as necessary
-                                            } else {
-                                                if(response.status===409){
-                                                    alert("Already exist")
-                                                }else {
-                                                    alert("error adding book")
-                                                }
-                                            }
-                                        }).catch(err => console.error('Fetch error:', err));
-                                    });
-                                });
+document.addEventListener('DOMContentLoaded', () => {
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+    const imagePreviewsDiv = document.getElementById('imagePreviews');
+    const addBookForm = document.getElementById('addBookForm');
+
+    // Listen for file changes on each input
+    const fileInputs = document.querySelectorAll('input[type=file][name=images]');
+    fileInputs.forEach((input, index) => {
+        input.addEventListener('change', function (event) {
+            const file = event.target.files[0]; // Get the first file selected
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.maxWidth = '100%';
+                    img.id = `imagePreview${index}`; // Use backticks for dynamic id
+                    imagePreviewsDiv.innerHTML = ''; // Clear previous previews
+                    imagePreviewsDiv.appendChild(img);
+
+                    // Initialize the cropper for the uploaded image
+                    const cropper = new Cropper(img, {
+                        viewMode: 1, // Keep the view mode as you wish
+                        ready() {
+                            cropperInstances[index] = cropper; // Store the cropper instance
+                        }
+                    });
+                };
+                reader.readAsDataURL(file);
+                imagePreviewContainer.style.display = 'block'; // Show the preview container
+            }
+        });
+    });
+
+    // Reset error messages function
+    const resetErrors = () => {
+        // Add your error message elements here
+        document.getElementById('titleError').textContent = '';
+        document.getElementById('authorError').textContent = '';
+        document.getElementById('descriptionError').textContent = '';
+        document.getElementById('priceError').textContent = '';
+        document.getElementById('stockError').textContent = '';
+        document.getElementById('categoryError').textContent = '';
+        document.getElementById('imagesError').textContent = '';
+    };
+
+    // Validate form fields
+    const validateForm = () => {
+        let valid = true;
+        resetErrors(); // Reset error messages before validation
+
+        const titleInput = document.getElementById('bookTitle');
+        const authorInput = document.getElementById('bookAuthor');
+        const descriptionInput = document.getElementById('bookDescription');
+        const priceInput = document.getElementById('bookPrice');
+        const stockInput = document.getElementById('bookStock');
+        const categoryInput = document.getElementById('bookCategory');
+
+        // Title validation
+        if (titleInput.value.trim() === '') {
+            document.getElementById('titleError').textContent = 'Title is required';
+            valid = false;
+        }
+
+        // Author validation
+        if (authorInput.value.trim() === '') {
+            document.getElementById('authorError').textContent = 'Author is required';
+            valid = false;
+        }
+
+        // Description validation
+        if (descriptionInput.value.trim() === '') {
+            document.getElementById('descriptionError').textContent = 'Description is required';
+            valid = false;
+        }
+
+        // Price validation
+        const price = Number(priceInput.value);
+        if (isNaN(price) || price <= 0) {
+            document.getElementById('priceError').textContent = 'Price must be a positive number';
+            valid = false;
+        }
+
+        // Stock validation
+        const stock = Number(stockInput.value);
+        if (isNaN(stock) || stock < 0) {
+            document.getElementById('stockError').textContent = 'Stock must be a non-negative number';
+            valid = false;
+        }
+
+        // Category validation
+        if (categoryInput.value === '') {
+            document.getElementById('categoryError').textContent = 'Category is required';
+            valid = false;
+        }
+
+        // Image validation
+        const allImagesSelected = Array.from(fileInputs).every(input => input.files.length > 0);
+        if (!allImagesSelected) {
+            document.getElementById('imagesError').textContent = 'All 3 images are required';
+            valid = false;
+        }
+
+        return valid;
+    };
+
+    addBookForm.addEventListener('submit', async function (event) {
+        event.preventDefault(); // Prevent the default form submission
+
+        // Validate form before proceeding
+        if (!validateForm()) {
+            return; // Stop submission if validation fails
+        }
+
+        const formData = new FormData();
+
+        // Append other form fields
+        formData.append('title', document.getElementById('bookTitle').value);
+        formData.append('author', document.getElementById('bookAuthor').value);
+        formData.append('description', document.getElementById('bookDescription').value);
+        formData.append('price', document.getElementById('bookPrice').value);
+        formData.append('stock', document.getElementById('bookStock').value);
+
+        // Append the categoryId
+        const categoryId = document.getElementById('bookCategory').value;  // Get the selected categoryId
+        formData.append('categoryId', categoryId);  // Append it to formData
+
+        // Array to hold promises for cropped images
+        const promises = cropperInstances.map((cropper, index) => {
+            return new Promise((resolve) => {
+                if (cropper) {
+                    cropper.getCroppedCanvas().toBlob((blob) => {
+                        if (blob) {
+                            formData.append('images', blob, `cropped-image-${index}.jpg`); // Ensure unique image names
+                        }
+                        resolve(); // Resolve the promise when done
+                    });
+                } else {
+                    resolve(); // Resolve immediately if no cropper
+                }
+            });
+        });
+
+        // Wait for all cropping promises to resolve
+        await Promise.all(promises);
+
+        // Send the form data to the server
+        fetch('/admin/addBooks', {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                alert('Book added successfully!');
+                location.reload(); // Reload the page or handle as necessary
+            } else {
+                if (response.status === 409) {
+                    alert("A book with this title already exists.");
+                } else {
+                    alert("Error adding book.");
+                }
+            }
+        }).catch(err => console.error('Fetch error:', err));
+    });
+});
+
                             </script>
                             
                             
@@ -241,6 +330,7 @@
                                             <th>Product Name</th>
                                             <th>Category</th>
                                             <th>Price</th>
+                                            <th>Stock</th> <!-- Added Stock column -->
                                             <th>Image</th>
                                             <th>Action</th>
                                         </tr>
@@ -253,6 +343,7 @@
                                                     <td><%= book.title %></td>
                                                     <td><%= book.categoryId ? book.categoryId.name : 'No Category' %></td> <!-- Check if category is populated -->
                                                     <td>$<%= book.price.toFixed(2) %></td>
+                                                    <td><%= book.stock %></td> <!-- Display stock value -->
                                                     <td>
                                                         <img src="/<%= book.images[0] %>" alt="<%= book.title %> Cover" style="width: 50px; height: auto;">
                                                     </td>
@@ -266,6 +357,7 @@
                                                                 data-author="<%= book.author %>" 
                                                                 data-description="<%= book.description %>" 
                                                                 data-price="<%= book.price %>" 
+                                                                data-stock="<%= book.stock %>" 
                                                                 data-bs-toggle="modal" 
                                                                 data-bs-target="#editProductModal">
                                                             Edit
@@ -281,6 +373,7 @@
                                     </tbody>
                                 </table>
                             </div>
+                            
                             
                             <!-- Pagination Controls -->
                             <nav aria-label="Page navigation">
@@ -343,6 +436,10 @@
                         <label for="editBookPrice" class="form-label">Price</label>
                         <input type="number" class="form-control" id="editBookPrice" name="price" required step="0.01">
                     </div>
+                    <div class="mb-3">
+                        <label for="editBookStock" class="form-label">Stock</label>
+                        <input type="number" class="form-control" id="editBookStock" name="stock" required step="0.01">
+                    </div>
                 
                     <!-- Existing Images with Remove Option -->
                     <div class="mb-3" id="existingImages">
@@ -383,7 +480,7 @@
         const bookDescription = button.getAttribute('data-description');
         const bookPrice = button.getAttribute('data-price');
         const bookImages = JSON.parse(button.getAttribute('data-images')); // Parse the images array
-        console.log(bookImages);
+        const bookStock = button.getAttribute('data-stock');
         
         // Populate the form fields with the current book data
         document.getElementById('bookId').value = bookId;
@@ -391,7 +488,7 @@
         document.getElementById('editBookAuthor').value = bookAuthor;
         document.getElementById('editBookDescription').value = bookDescription;
         document.getElementById('editBookPrice').value = bookPrice;
-
+        document.getElementById('editBookStock').value = bookStock;
         // Inject current images into the modal with a remove option
         const existingImagesContainer = document.getElementById('existingImages');
         existingImagesContainer.innerHTML = ''; // Clear any previous content

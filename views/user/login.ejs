@@ -44,13 +44,16 @@
                 <% if (error) { %>
                     <div class="alert alert-danger"><%= error %></div>
                 <% } %>
+                <% if (message) { %>
+                    <div class="alert alert-success"><%= message %></div>
+                <% } %>
                 <div class="form-group">
                     <label for="email">Email:</label>
-                    <input type="email" class="form-control" id="email" name="email" required pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$" title="Please enter a valid email address.">
+                    <input type="email" class="form-control" id="email" name="email">
                 </div>
                 <div class="form-group">
                     <label for="password">Password:</label>
-                    <input type="password" class="form-control" id="password" name="password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}" title="Password must be at least 8 characters long, include at least one lowercase letter, one uppercase letter, and one number.">
+                    <input type="password" class="form-control" id="password" name="password">
                 </div>
                 <button type="submit" class="btn btn-primary btn-block">Login</button>
                 <p class="text-center mt-3">Don't have an account? <a href="/signup">Sign up</a></p>

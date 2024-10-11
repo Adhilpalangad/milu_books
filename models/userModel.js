@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String },
-    googleId: { type: String }, // New field for Google ID
+    googleId: { type: String }, 
     isAdmin: { type: Boolean, required: true, default: false },
     isBlocked: { type: Boolean, required: true, default: false },
     otp: String,
@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
 });
 
 
-// Hash password before saving (if applicable)
+
 userSchema.pre('save', async function(next) {
     if (this.isModified('password')) {
         this.password = await bcrypt.hash(this.password, 10);

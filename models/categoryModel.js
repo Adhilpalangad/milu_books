@@ -1,4 +1,4 @@
-// models/Category.js
+
 
 const mongoose = require('mongoose');
 
@@ -6,11 +6,11 @@ const categorySchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
-        unique: true, // Ensure category names are unique
+        unique: true, 
     },
     isActive: {
         type: Boolean,
-        default: true, // Default to active
+        default: true, 
     }
 }, { timestamps: true });
 

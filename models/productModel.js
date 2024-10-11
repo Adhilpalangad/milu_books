@@ -14,11 +14,11 @@ const bookSchema = new mongoose.Schema({
         required: true
     },
     images: {
-        type: [String], // Store an array of image paths
+        type: [String], 
         required: true
     },
     price: {
-        type: Number, // Price of the book
+        type: Number, 
         required: true
     },
     stock: {
@@ -27,10 +27,10 @@ const bookSchema = new mongoose.Schema({
     },
     isActive: {
         type: Boolean,
-        default: true // Default value for isActive is true
+        default: true 
     },
     categoryId: {
-        type:mongoose.Schema.Types.ObjectId, // Reference to the Category collection
+        type:mongoose.Schema.Types.ObjectId, 
         required: true,
         ref:'Category'
     }

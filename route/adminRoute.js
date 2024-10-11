@@ -9,11 +9,9 @@ const adminAuthed = require("../middileware/admin/adminAuthed")
 
 router.get('/', adminAuthed, adminController.login)
 router.post('/',adminController.postLogin)
-
 router.get('/home',adminAuth, (req, res) => {
     res.render('admin/home')
 })
-
 router.get('/users',adminAuth,adminController.adminUsers)
 router.post('/blockUser',adminController.blockUser);
 router.post('/unblockUser', adminController.unblockUser)
@@ -27,14 +25,12 @@ router.post('/deleteCategory/:id',adminController.deleleCategory)
 router.get('/orders',adminAuth, (req, res) => {
     res.render('admin/orders')
 })
-
 router.get('/category',adminAuth,adminController.getCategory)
 router.get('/editCategory/:id',adminAuth,adminController.getEditCategory)
 router.post('/editCategory/:id',adminController.editCategory)
 router.post('/logout', (req, res) => {
     req.session.destroy()   
-    return res.redirect('admin/login'); // Handle the error appropriately
+    return res.redirect('admin/login'); 
 });
-
 
 module.exports = router

@@ -12,31 +12,29 @@ require('./config/passportConfig');
 connectDb();
 
 // Built-in middleware for parsing JSON and URL-encoded form data
-app.use(express.json()); // For parsing application/json
-app.use(express.urlencoded({ extended: true })); // For parsing application/x-www-form-urlencoded
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true })); 
 
 const session = require('express-session');
 
 app.use(session({
-    secret: 'yehfgeiw32', // Change this to a random secret
+    secret: 'yehfgeiw32', 
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: false } // Set secure to true in production with HTTPS
+    cookie: { secure: false } 
 }));
 
 app.use((req, res, next) => {
-    res.locals.session = req.session; // Make session data available in views
+    res.locals.session = req.session; 
     next();
 });
 
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Serve static files from the "public" and "uploads" directories
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'uploads')));
 
-// Middleware to disable cache for sensitive routes
 const nocache = (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.setHeader('Pragma', 'no-cache');
@@ -44,10 +42,8 @@ const nocache = (req, res, next) => {
     next();
   };
   
-  // Apply cache control for sensitive routes
   app.use(['/login', '/home' ,'/admin','/admin/home'], nocache);
 
-// Set up view engine
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
 

@@ -362,10 +362,16 @@ document.addEventListener('DOMContentLoaded', () => {
                                                                 data-bs-target="#editProductModal">
                                                             Edit
                                                         </button>
-                                                        <form action="/admin/deleteBook" method="POST" style="display:inline;">
+                                                        <form id="deleteBookForm" action="/admin/deleteBook" method="POST" style="display:inline;" onsubmit="return confirmDeleteBook()">
                                                             <input type="hidden" name="bookId" value="<%= book._id %>">
                                                             <button type="submit" class="btn btn-danger">Delete</button>
                                                         </form>
+                                                        <script>
+                                                            function confirmDeleteBook() {
+                                                        return confirm("Are you sure you want to delete this book?");
+                                                        }
+
+                                                        </script>
                                                     </td>
                                                 </tr>
                                             <% } %>

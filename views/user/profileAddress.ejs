@@ -1,0 +1,74 @@
+<%- include("partials/profileHeader.ejs") %>
+
+<div id="addresses" class="bg-white rounded-lg shadow-md p-6">
+    <h1 class="text-2xl font-semibold mb-4">Saved Addresses</h1>
+    
+    <% if (addresses.length > 0) { %>
+        <div class="row">
+            <% addresses.forEach((address, index) => { %>
+                <div class="col-md-4 mb-4">
+                    <div class="card border shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">Address <%= index + 1 %></h5>
+                            <p><strong>Street:</strong> <%= address.street %></p>
+                            <p><strong>City:</strong> <%= address.city %></p>
+                            <p><strong>State:</strong> <%= address.state %></p>
+                            <p><strong>Country:</strong> <%= address.country %></p>
+                            <p><strong>Postal Code:</strong> <%= address.postalCode %></p>
+                            
+                            <!-- Edit Button -->
+                            <button 
+                                onclick="toggleEditAddress(<%= index %>)" 
+                                class="btn btn-primary btn-sm"
+                            >
+                                Edit
+                            </button>
+
+                            <!-- Delete Button -->
+                            <form action="/addresses/delete/<%= address._id %>" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-danger btn-sm ml-2">Delete</button>
+                            </form>
+
+                            <!-- Edit mode -->
+                            <form id="edit-address-form-<%= index %>" action="/addresses/edit/<%= address._id %>" method="POST" style="display: none;">
+                                <input type="text" name="street" value="<%= address.street %>" placeholder="Street" required>
+                                <input type="text" name="city" value="<%= address.city %>" placeholder="City" required>
+                                <input type="text" name="state" value="<%= address.state %>" placeholder="State" required>
+                                <input type="text" name="country" value="<%= address.country %>" placeholder="Country" required>
+                                <input type="text" name="postalCode" value="<%= address.postalCode %>" placeholder="Postal Code" required>
+                                <button type="submit" class="btn btn-success btn-sm">Save</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    <% } else { %>
+        <p>No saved addresses found.</p>
+    <% } %>
+
+    <!-- Add New Address Button -->
+    <button id="add-address-btn" class="bg-blue-500 text-white py-2 px-4 rounded">Add New Address</button>
+
+    <!-- Form for Adding New Address (Initially Hidden) -->
+    <form id="add-address-form" action="/addresses/add" method="POST" class="mt-4">
+        <input type="text" name="fullName" placeholder="Full Name" class="border w-full p-2 mb-2" required>
+        <input type="text" name="street" placeholder="Street" class="border w-full p-2 mb-2" required>
+        <input type="text" name="city" placeholder="City" class="border w-full p-2 mb-2" required>
+        <input type="text" name="state" placeholder="State" class="border w-full p-2 mb-2" required>
+        <input type="text" name="country" placeholder="Country" class="border w-full p-2 mb-2" required>
+        <input type="text" name="postalCode" placeholder="Postal Code" class="border w-full p-2 mb-2" required>
+        <button type="submit" class="bg-green-500 text-white py-2 px-4 rounded">Save Address</button>
+    </form>
+</div>
+
+<script>
+    function toggleEditAddress(index) {
+        const form = document.getElementById(`edit-address-form-${index}`);
+        // Toggle display property between none and block
+        form.style.display = (form.style.display === "none" || form.style.display === "") ? "block" : "none";
+    }
+</script>
+
+
+<%- include("partials/profileFooter.ejs") %>

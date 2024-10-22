@@ -7,6 +7,7 @@ const upload = require('../config/multerConfig');
 const mongoose = require("mongoose")
 const fs = require('fs');
 const Category = require('../models/categoryModel');
+const Order = require('../models/orderModel')
 
 
 //login page
@@ -94,7 +95,7 @@ const blockUser = async (req, res) => {
         }
 
         await User.findByIdAndUpdate(userId, { isBlocked: true });
-
+        req.session.user=null
         res.redirect('/admin/users');  
     } catch (error) {
         console.error('Error blocking user:', error);
@@ -283,7 +284,7 @@ const addCategory = async (req, res) => {
         const { name } = req.body;
         const existingBook = await Category.findOne({ name });
         if (existingBook) {
-            return res.redirect('/admin/category?error=Book with this title already exists.');
+            return res.redirect('/admin/category?error=Category with this title already exists.');
         }
         const validNamePattern = /^[A-Za-z\s]+$/; 
         if (!validNamePattern.test(name)) {
@@ -339,7 +340,7 @@ const deleleCategory = async (req, res) => {
 
         await Category.findByIdAndUpdate(categoryId, { isActive: false });
         
-        res.json({ message: 'Category deleted successfully', redirectUrl: '/admin/category?message=Category+Deleted' });
+        res.redirect('/admin/category?message=Category+Deleted');
     } catch (error) {
         console.error('Error deleting category:', error);
         res.status(500).json({ message: 'Error deleting category' });
@@ -373,7 +374,12 @@ const editCategory = async (req, res) => {
         const { id } = req.params; 
         const { name } = req.body; 
 
-        
+        const validNamePattern = /^[A-Za-z\s]+$/; 
+        if (!validNamePattern.test(name)) {
+            return res.redirect('/admin/category?error=Category name can only contain letters and spaces.');
+            
+        }
+
         if (!name || name.trim() === '') {
             return res.redirect(`/admin/editCategory/${id}?error=Category name is required.`);
         }
@@ -400,7 +406,7 @@ const editCategory = async (req, res) => {
         if (duplicateCategory) {
             return res.redirect(`/admin/editCategory/${id}?error=Category with this name already exists.`);
         }
-
+        
     
         const updatedCategory = await Category.findByIdAndUpdate(
             id,
@@ -416,7 +422,80 @@ const editCategory = async (req, res) => {
     }
 };
 
+const getOrders = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1; // Get the page number from the query string
+        const limit = 5; // Set the number of orders per page
+        const skip = (page - 1) * limit; // Calculate the number of orders to skip
 
+        const totalOrders = await Order.countDocuments(); // Get the total number of orders
+        const orders = await Order.find()
+            .populate('items.productId')
+            .populate('userId')
+            .limit(limit)
+            .skip(skip); // Fetch the orders for the current page
+
+        const totalPages = Math.ceil(totalOrders / limit); // Calculate total pages
+
+        // Log fetched orders for debugging
+        console.log('Fetched Orders:', orders);
+
+        // Render the EJS view and pass the orders data, current page, and total pages
+        res.render('admin/orders', { orders, currentPage: page, totalPages }); // Make sure 'admin/orders' matches your EJS view file
+    } catch (error) {
+        console.error('Error fetching orders:', error);
+        res.status(500).send('Error fetching orders');
+    }
+};
+
+
+// Controller to update order status
+const updateOrderStatus = async (req, res) => {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    try {
+        const order = await Order.findById(orderId);
+        if (!order) return res.status(404).send('Order not found');
+
+        order.status = status;
+        
+        // Only set cancelledAt if the new status is 'canceled'
+        if (status === 'canceled') {
+            order.cancelledAt = new Date();
+        }
+        if (status === 'delivered') {
+            order.deliveredAt = new Date(); // Set the delivered date to now
+        }
+
+        await order.save();
+
+        res.redirect(`/admin/orders?message=Order+status+updated+successfully`);
+    } catch (error) {
+        console.error('Error updating order status:', error);
+        res.status(500).redirect(`/admin/orders?error=Error+updating+order+status`);
+    }
+};
+
+const cancelOrder = async (req, res) => {
+    const { orderId } = req.params;
+
+    try {
+        const order = await Order.findById(orderId);
+        if (!order) {
+            return res.status(404).redirect(`/admin/orders?error=Order+not+found`);
+        }
+
+        order.status = 'canceled';
+        order.cancelledAt = new Date();
+        await order.save();
+
+        res.redirect(`/admin/orders?message=Order+canceled+successfully`);
+    } catch (error) {
+        console.error('Error cancelling order:', error);
+        res.status(500).redirect(`/admin/orders?error=Error+cancelling+order`);
+    }
+};
 
 
 
@@ -436,5 +515,8 @@ module.exports = {
     editCategory,
     getEditCategory,
     login,
-    postLogin
+    postLogin,
+    getOrders,
+    updateOrderStatus,
+    cancelOrder
 };

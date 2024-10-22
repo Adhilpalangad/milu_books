@@ -4,13 +4,16 @@ const bcrypt = require('bcrypt');
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    password: { type: String },
-    googleId: { type: String }, 
+    password: { type: String, required: true },
+    googleId: { type: String },
     isAdmin: { type: Boolean, required: true, default: false },
     isBlocked: { type: Boolean, required: true, default: false },
+    phone: { type: String }, // Add phone field if it's not already there
+    gender: { type: String, enum: ['male', 'female', 'other'] }, // Add gender field
     otp: String,
     otpExpires: Date
 });
+
 
 
 

@@ -98,12 +98,44 @@ Input, textarea : 14px/1.6 '', Arial, sans-serif;
 }
 
 
+.filter-box {
+  border: 1px solid #ddd;
+  padding: 15px;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  width: 100%;
+}
+
+.filter-group {
+  margin-bottom: 15px;
+}
+
+.filter-group label {
+  font-weight: bold;
+}
+
+.isotope-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.isotope-item {
+  margin-bottom: 30px;
+}
+
+@media (max-width: 991px) {
+  .col-lg-3, .col-lg-9 {
+      width: 100%;
+  }
+}
+
+
 /*//////////////////////////////////////////////////////////////////
 [ RS PLUGIN ]*/
 
 /*------------------------------------------------------------------
 [ Bootstrap ]*/
-.container {max-width: 1380px;}
+.container {max-width: 1527px;}
 
 @media (max-width: 1600px) {
   .container {max-width: 1200px;}

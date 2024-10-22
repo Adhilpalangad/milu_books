@@ -22,9 +22,7 @@ router.post('/deleteBook', adminController.deleleBook)
 router.post('/addCategory', adminController.addCategory)
 router.get('/create-category',adminAuth, adminController.createCategory)
 router.post('/deleteCategory/:id',adminController.deleleCategory)
-router.get('/orders',adminAuth, (req, res) => {
-    res.render('admin/orders')
-})
+router.get('/orders',adminAuth,adminController.getOrders)
 router.get('/category',adminAuth,adminController.getCategory)
 router.get('/editCategory/:id',adminAuth,adminController.getEditCategory)
 router.post('/editCategory/:id',adminController.editCategory)
@@ -32,5 +30,10 @@ router.post('/logout', (req, res) => {
     req.session.destroy()   
     return res.redirect('admin/login'); 
 });
+// Route in your order router
+router.post('/orders/:orderId/status', adminController.updateOrderStatus);
+router.post('/orders/:orderId/cancel', adminController.cancelOrder);
+
+
 
 module.exports = router

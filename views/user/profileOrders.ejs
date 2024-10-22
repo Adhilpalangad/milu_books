@@ -1,0 +1,97 @@
+<%- include("partials/profileHeader.ejs", { currentUrl: currentUrl }) %>
+
+<div id="orders" class="bg-white rounded-lg shadow-md p-6">
+    <h1 class="text-2xl font-semibold mb-4">My Orders</h1>
+    <% if (orders.length > 0) { %>
+        <ul>
+            <% orders.forEach(order => { %>
+                <li class="mb-4 p-4 border-b flex flex-col">
+                    <!-- Product details for each item in the order -->
+                    <div class="flex-grow">
+                        <% order.items.forEach(item => { %>
+                            <div class="flex items-center mb-4">
+                                <!-- Product image -->
+                                <div class="w-24 h-34 mr-6">
+                                    <img src="/<%= item.productId.images[0] %>" alt="Product Image" class="w-full h-full object-cover rounded-md">
+                                </div>
+
+                                <!-- Product details -->
+                                <div class="flex-grow">
+                                    <div><strong>Product Name:</strong> <%= item.productId.title || 'Unnamed Product' %></div>
+                                    <div class="text-sm"><strong>Quantity:</strong> <%= item.quantity %></div>
+                                    <div><strong>Price:</strong> $<%= item.productId.price.toFixed(2) %></div>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+
+                    <!-- Total price for the order -->
+                    <div class="flex justify-between mt-4">
+                        <div><strong>Total:</strong> $<%= order.total.toFixed(2) %></div>
+
+                        <!-- Status, adjusted for pending status -->
+                        <div class="ml-6">
+                            <style>
+                                .status-pending {
+                                    color: orange; /* Change to your preferred color */
+                                    font-weight: bold;
+                                }
+
+                                .status-shipped {
+                                    color: blue; /* Change to your preferred color */
+                                    font-weight: bold;
+                                }
+
+                                .status-delivered {
+                                    color: green; /* Change to your preferred color */
+                                    font-weight: bold;
+                                }
+
+                                .status-cancelled {
+                                    color: red; /* Change to your preferred color */
+                                    font-weight: bold;
+                                }
+                            </style>
+                            <div>
+                                <strong>Status:</strong>
+                                <% if (order.status === 'pending') { %>
+                                    <span class="status-pending">
+                                        Expected delivery on: <%= new Date(new Date(order.createdAt).setDate(new Date(order.createdAt).getDate() + 5)).toLocaleDateString() %>
+                                    </span>
+                                <% } else if (order.status === 'shipped') { %>
+                                    <span class="status-shipped">
+                                        Shipped  %>
+                                    </span>
+                                <% } else if (order.status === 'delivered') { %>
+                                    <span class="status-delivered">
+                                        Delivered on: <%= new Date(order.deliveredAt).toLocaleDateString() %>
+                                    </span>
+                                <% } else if (order.status === 'cancelled') { %>
+                                    <span class="status-cancelled">
+                                        Cancelled on: <%= new Date(order.cancelledAt).toLocaleDateString() %>
+                                    </span>
+                                <% } else { %>
+                                    <span>
+                                        <%= order.status %>
+                                    </span>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cancel button, shown only if order is not cancelled or delivered -->
+                    <% if (order.status !== 'cancelled' && order.status !== 'delivered') { %>
+                        <form action="/orders/cancel/<%= order._id %>" method="POST" class="inline mt-2">
+                            <button type="submit" class="text-red-600 hover:text-red-800">Cancellation</button>
+                        </form>
+                        
+                    <% } %>
+                </li>
+            <% }) %>
+        </ul>
+    <% } else { %>
+        <p>No orders found.</p>
+    <% } %>
+</div>
+
+<%- include("partials/profileFooter.ejs") %>

@@ -32,8 +32,22 @@ router.post('/logout', (req, res) => {
 });
 // Route in your order router
 router.post('/orders/:orderId/status', adminController.updateOrderStatus);
-router.post('/orders/:orderId/cancel', adminController.cancelOrder);
+router.post('/create-coupon', adminController.createCoupon);
+router.post('/deactivate-coupon/:id', adminController.deactivateCoupon);
+router.get('/coupons',adminController.getCoupons)
+router.get('/getCreateCoupon',adminController.getCreateCoupon)
+router.post('/deleteCoupon/:id',adminController.deactivateCoupon)
+router.get('/editCoupon/:id', adminController.getEditCoupon);
+router.post('/editCoupon/:id', adminController.updateCoupon);
+router.get('/offer-management', adminController.getOfferManagementPage);
+router.get('/getCreateOffer', adminController.renderCreateOfferPage);
+router.post('/createOffer', adminController.createOffer);
+router.get('/editOffer/:offerId', adminController.renderEditOfferPage);
+router.post('/updateOffer/:offerId', adminController.updateOffer);
+router.post('/toggleOfferStatus/:offerId', adminController.toggleOfferStatus);
+router.get('/report',adminController.getDeliveredSalesReport)
 
-
-
+router.route('/downloadSalesReport')
+  .get(adminController.downloadSalesReport)
+  .post(adminController.downloadSalesReport);
 module.exports = router

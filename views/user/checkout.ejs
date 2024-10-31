@@ -1,50 +1,272 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Checkout</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <style>
-        .cart-items {
-            border: 1px solid #ccc;
-            padding: 15px;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-        }
-        .address-card {
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            padding: 15px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .address-card:hover {
-            background-color: #f1f1f1;
-        }
-        .selected-address {
-            background-color: #e2e2e2; /* Highlight selected address */
-        }
-    </style>
-</head>
-<body>
+<%- include("partials/header.ejs") %>
 
-    <div class="container mt-5">
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+        background-color: #f9fafb;
+        line-height: 1.5;
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+    }
+
+    h2 {
+        font-size: 1.875rem;
+        margin-bottom: 2rem;
+        color: #1f2937;
+    }
+
+    h4 {
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+        color: #374151;
+    }
+
+    .row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    @media (min-width: 768px) {
+        .row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    /* Cart Items Styling */
+    .cart-items {
+        background-color: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .list-group {
+        list-style: none;
+    }
+
+    .list-group-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+        margin-bottom: 0.75rem;
+        border-radius: 0.5rem;
+        background-color: #f9fafb;
+    }
+
+    .list-group-item img {
+        border-radius: 0.25rem;
+        margin-right: 1rem;
+    }
+
+    /* Total Summary */
+    .border {
+        background-color: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+    }
+
+    .d-flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .font-weight-bold {
+        font-weight: 600;
+        padding-top: 0.5rem;
+        margin-top: 0.5rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    /* Address Selection */
+    .address-card {
+        background-color: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .address-card:hover {
+        background-color: #f3f4f6;
+    }
+
+    .selected-address {
+        border-color: #2563eb;
+        background-color: #eff6ff;
+    }
+
+    /* Form Controls */
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-check {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-check-input {
+        margin-right: 0.5rem;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.375rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Buttons */
+    .btn {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border: 1px solid transparent;
+    }
+
+    .btn-primary {
+        background-color: #2563eb;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background-color: #1d4ed8;
+    }
+
+    .btn-secondary {
+        background-color: #6b7280;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background-color: #4b5563;
+    }
+
+    .btn-success {
+        background-color: #059669;
+        color: white;
+        width: 100%;
+        margin-top: 1rem;
+    }
+
+    .btn-success:hover {
+        background-color: #047857;
+    }
+
+    .mt-2 {
+        margin-top: 0.5rem;
+    }
+
+    .mt-3 {
+        margin-top: 1rem;
+    }
+
+    .mt-4 {
+        margin-top: 1.5rem;
+    }
+
+    .mb-4 {
+        margin-bottom: 1.5rem;
+    }
+
+    /* Payment Section */
+    #newAddressForm {
+        background-color: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-top: 1rem;
+    }
+
+    .p-3 {
+        padding: 1rem;
+    }
+
+    /* Make form fields stack on small screens */
+    @media (max-width: 640px) {
+        .form-row {
+            display: block;
+        }
+        
+        .form-row input {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+    }
+
+    .cart-items {
+        border: 1px solid #ccc;
+        padding: 15px;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+    }
+    .address-card {
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 15px;
+        margin-bottom: 15px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .address-card:hover {
+        background-color: #f1f1f1;
+    }
+    .selected-address {
+        background-color: #e2e2e2; /* Highlight selected address */
+    }
+    .list-group-item {
+display: flex;
+justify-content: space-between; /* Space between the two main sections */
+align-items: center; /* Center vertically */
+}
+
+.flex-col {
+display: flex;
+align-items: center; /* Center the image and text vertically */
+}
+
+.me-2 {
+margin-right: 0.5rem; /* Add some margin to the right for spacing */
+}
+</style>
+    <div class="container" style="margin-top: 80px;">
         <h2>Checkout</h2>
-
+        
         <div class="row">
             <!-- Left Column: Cart Items and Total -->
-            <div class="col-md-6">
-                <div class="cart-items mb-4 p-3 border rounded">
+            <div>
+                <div class="cart-items mb-4">
                     <h4>Your Cart Items</h4>
                     <% if (items.length > 0) { %>
                         <ul class="list-group">
                             <% items.forEach(item => { %>
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <img src="<%= item.imageUrl %>" alt="<%= item.name %>" width="50" height="70" class="mr-3">
-                                        <strong><%= item.name %></strong> (x<%= item.quantity %>)
+                                    <div class="flex-col d-flex align-items-center">
+                                        <img src="<%= item.imageUrl %>" alt="<%= item.name %>" width="50" height="70" class="me-2">
+                                        <strong class="me-2"><%= item.name %></strong> (x<%= item.quantity %>)
                                     </div>
                                     <span>₹<%= item.price * item.quantity %></span>
                                 </li>
@@ -55,180 +277,245 @@
                     <% } %>
                 </div>
 
-                <div class="border p-3 rounded">
-                    <div class="d-flex justify-content-between">
+                <div class="border">
+                    <div class="d-flex">
                         <span>Subtotal:</span>
                         <span>₹<%= subtotal %></span>
                     </div>
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex">
                         <span>Discount:</span>
-                        <span>- ₹0</span>
+                        <span id="discountAmount">- ₹0</span>
                     </div>
-                    
-                    <div class="d-flex justify-content-between font-weight-bold mt-2">
+                    <div class="d-flex">
+                        <span>Offer Applied:</span>
+                        <span id="discountAmount">₹<%= offerDiscount %></span>
+                    </div>
+                    <div class="d-flex font-weight-bold">
                         <span>Total:</span>
-                        <span>₹<%= subtotal %></span>
+                        <span id="totalAmount">₹<%= total %></span>
                     </div>
                 </div>
             </div>
-
-            <!-- Right Column: Address Selection -->
-            <div class="col-md-6">
-                <h4>Select Saved Address</h4>
-                <form id="checkoutForm" method="POST" action="/checkout">
-                    <div id="addressList">
-                        <% addresses.forEach(address => { %>
-                            <div class="address-card" onclick="selectAddress(this, '<%= address._id %>', '<%= address.fullName %>', '<%= address.street %>', '<%= address.city %>', '<%= address.state %>', '<%= address.country %>', '<%= address.postalCode %>')">
-                                <h5><%= address.fullName %></h5>
-                                <p>
-                                    <strong>Address:</strong> <%= address.street %>, <%= address.city %>, <%= address.state %>, <%= address.country %>, <%= address.postalCode %>
-                                </p>
-                            </div>
-                        <% }) %>
-                    </div>
-
-                    <!-- Hidden Inputs for Address Details -->
-                    <input type="hidden" id="selectedAddress" name="selectedAddress" required />
-                    <input type="hidden" id="fullName" name="fullName" required />
-                    <input type="hidden" id="street" name="street" required />
-                    <input type="hidden" id="city" name="city" required />
-                    <input type="hidden" id="state" name="state" required />
-                    <input type="hidden" id="country" name="country" required />
-                    <input type="hidden" id="postalCode" name="postalCode" required />
-
-                    <!-- Button to Add New Address -->
-                    <button type="button" class="btn btn-primary mt-3" onclick="showAddAddressForm()">Add New Address</button>
-
-                    <h4 class="mt-4">Payment Method</h4>
-                    <div class="form-group">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="paymentMethod" id="razorpay" value="razorpay" required />
-                            <label class="form-check-label" for="razorpay">Razorpay</label>
+                
+                <!-- Right Column: Address Selection -->
+                <div>
+                    <h4>Select Saved Address</h4>
+                    <form id="checkoutForm" method="POST" action="/checkout">
+                        <div class="form-group">
+                            <label for="addressSelect">Saved Addresses</label>
+                            <select id="addressSelect" class="form-control" onchange="selectAddressFromDropdown()" required>
+                                <option value="">-- Select Address --</option>
+                                <% addresses.forEach(address => { %>
+                                    <option value="<%= address._id %>" data-fullname="<%= address.fullName %>" data-street="<%= address.street %>" data-city="<%= address.city %>" data-state="<%= address.state %>" data-country="<%= address.country %>" data-postalcode="<%= address.postalCode %>">
+                                        <%= address.fullName %>: <%= address.street %>, <%= address.city %>, <%= address.state %>, <%= address.country %>, <%= address.postalCode %>
+                                    </option>
+                                <% }) %>
+                            </select>
                         </div>
-                    </div>
-
-                    <button type="button" class="btn btn-success btn-block mt-4" id="payBtn">Place Order</button>
-                </form>
-
-                <div id="newAddressForm" style="display: none;">
-                    <h4 class="mt-4">New Address</h4>
-                    <div class="form-group">
-                        <label for="newFullName">Full Name</label>
-                        <input type="text" id="newFullName" name="newFullName" placeholder="Full Name" class="form-control" required />
-                    </div>
-                    <div class="form-group">
-                        <label for="newStreet">Street</label>
-                        <input type="text" id="newStreet" name="newStreet" placeholder="Street" class="form-control" required />
-                    </div>
-                    <div class="form-group">
-                        <label for="newCity">City</label>
-                        <input type="text" id="newCity" name="newCity" placeholder="City" class="form-control" required />
-                    </div>
-                    <div class="form-group">
-                        <label for="newState">State</label>
-                        <input type="text" id="newState" name="newState" placeholder="State" class="form-control" required />
-                    </div>
-                    <div class="form-group">
-                        <label for="newCountry">Country</label>
-                        <input type="text" id="newCountry" name="newCountry" placeholder="Country" class="form-control" required />
-                    </div>
-                    <div class="form-group">
-                        <label for="newPostalCode">Postal Code</label>
-                        <input type="text" id="newPostalCode" name="newPostalCode" placeholder="Postal Code" class="form-control" required />
-                    </div>
+                
+                        <!-- Hidden Inputs for Address Details -->
+                        <input type="hidden" id="selectedAddress" name="selectedAddress" required>
+                        <input type="hidden" id="fullName" name="fullName" required>
+                        <input type="hidden" id="street" name="street" required>
+                        <input type="hidden" id="city" name="city" required>
+                        <input type="hidden" id="state" name="state" required>
+                        <input type="hidden" id="country" name="country" required>
+                        <input type="hidden" id="postalCode" name="postalCode" required>
+                
+                        <button type="button" class="btn btn-primary mt-3" onclick="showAddAddressForm()">Add New Address</button>
+                
+                        <h4 class="mt-4">Payment Method</h4>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="paymentMethod" id="bankTransfer" value="bankTransfer" required>
+                                <label class="form-check-label" for="bankTransfer">Bank Transfer</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="paymentMethod" id="cashOnDelivery" value="cashOnDelivery" required>
+                                <label class="form-check-label" for="cashOnDelivery">Cash on Delivery</label>
+                            </div>
+                        </div>
+                        <div class="form-group mt-3">
+                            <label for="couponCode">Coupon Code</label>
+                            <input type="text" id="couponCode" name="couponCode" class="form-control" placeholder="Enter coupon code">
+                            <button type="button" class="btn btn-secondary mt-2" onclick="applyCoupon()">Apply Coupon</button>
+                        </div>
+                
+                        <button type="submit" class="btn btn-success">Place Order</button>
+                    </form>
                 </div>
+    <div id="newAddressForm" style="display: none;">
+        <h4 class="mt-4">New Address</h4>
+        <div class="form-group">
+            <label for="newFullName">Full Name</label>
+            <input type="text" id="newFullName" name="newFullName" placeholder="Full Name" class="form-control" required />
+        </div>
+        <div class="form-group">
+            <label for="newStreet">Street</label>
+            <input type="text" id="newStreet" name="newStreet" placeholder="Street" class="form-control" required />
+        </div>
+        <div class="form-group">
+            <label for="newCity">City</label>
+            <input type="text" id="newCity" name="newCity" placeholder="City" class="form-control" required />
+        </div>
+        <div class="form-group">
+            <label for="newState">State</label>
+            <input type="text" id="newState" name="newState" placeholder="State" class="form-control" required />
+        </div>
+        <div class="form-group">
+            <label for="newCountry">Country</label>
+            <input type="text" id="newCountry" name="newCountry" placeholder="Country" class="form-control" required />
+        </div>
+        <div class="form-group">
+            <label for="newPostalCode">Postal Code</label>
+            <input type="text" id="newPostalCode" name="newPostalCode" placeholder="Postal Code" class="form-control" required />
+        </div>
+    </div>
             </div>
         </div>
     </div>
-
+    
     <script>
-        function selectAddress(element, id, fullName, street, city, state, country, postalCode) {
-            const addressCards = document.querySelectorAll('.address-card');
-            addressCards.forEach(card => card.classList.remove('selected-address'));
-            element.classList.add('selected-address');
-        
-            // Populate hidden inputs with selected address details
-            document.getElementById('selectedAddress').value = id;
-            document.getElementById('fullName').value = fullName;
-            document.getElementById('street').value = street;
-            document.getElementById('city').value = city;
-            document.getElementById('state').value = state;
-            document.getElementById('country').value = country;
-            document.getElementById('postalCode').value = postalCode;
-        
-            // Hide new address form
-            document.getElementById('newAddressForm').style.display = 'none';
-        }
-        
-        function showAddAddressForm() {
-            // Clear existing address selection
+            //=========================script for coupon========================
+        let subtotal = <%= subtotal %>; // Set the subtotal variable from your server-side code
+                
+                    function applyCoupon() {
+                        const couponCode = document.getElementById('couponCode').value;
+                
+                        // Make an AJAX call to validate the coupon
+                        fetch('/validateCoupon', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ couponCode, subtotal })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.total !== undefined) {
+                                // Update total amount and discount
+                                document.getElementById('totalAmount').innerText = `₹${data.total.toFixed(2)}`;
+                                document.getElementById('discountAmount').innerText = `- ₹${(subtotal - data.total).toFixed(2)}`;
+                            } else {
+                                // Handle errors
+                                alert(data.message);
+                                // Reset to original subtotal if needed
+                                document.getElementById('totalAmount').innerText = `₹${subtotal.toFixed(2)}`;
+                                document.getElementById('discountAmount').innerText = '- ₹0';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error applying coupon:', error);
+                        });
+                    }
+
+        //=========================script for adddress========================
+       
+    function selectAddressFromDropdown() {
+        const selectElement = document.getElementById('addressSelect');
+        const selectedAddressId = selectElement.value;
+
+        // Check if an address is selected
+        if (selectedAddressId) {
+            const selectedOption = selectElement.options[selectElement.selectedIndex];
+
+            // Set hidden input values based on the selected address
+            document.getElementById('selectedAddress').value = selectedAddressId;
+            document.getElementById('fullName').value = selectedOption.getAttribute('data-fullname');
+            document.getElementById('street').value = selectedOption.getAttribute('data-street');
+            document.getElementById('city').value = selectedOption.getAttribute('data-city');
+            document.getElementById('state').value = selectedOption.getAttribute('data-state');
+            document.getElementById('country').value = selectedOption.getAttribute('data-country');
+            document.getElementById('postalCode').value = selectedOption.getAttribute('data-postalcode');
+        } else {
+            // Clear hidden inputs if no address is selected
             document.getElementById('selectedAddress').value = '';
-            const addressCards = document.querySelectorAll('.address-card');
-            addressCards.forEach(card => card.classList.remove('selected-address'));
-        
-            // Show new address form
-            document.getElementById('newAddressForm').style.display = 'block';
+            document.getElementById('fullName').value = '';
+            document.getElementById('street').value = '';
+            document.getElementById('city').value = '';
+            document.getElementById('state').value = '';
+            document.getElementById('country').value = '';
+            document.getElementById('postalCode').value = '';
         }
-        
-        document.getElementById('payBtn').onclick = function () {
+    }
+
+    function showAddAddressForm() {
+        document.getElementById('newAddressForm').style.display = 'block';
+        // Clear selected address if adding a new one
+        document.getElementById('addressSelect').value = '';
+        clearSelectedAddressInputs();
+    }
+
+    function clearSelectedAddressInputs() {
+        document.getElementById('selectedAddress').value = '';
+        document.getElementById('fullName').value = '';
+        document.getElementById('street').value = '';
+        document.getElementById('city').value = '';
+        document.getElementById('state').value = '';
+        document.getElementById('country').value = '';
+        document.getElementById('postalCode').value = '';
+    }
+        //=========================script for order========================
+
+        function enablePlaceOrderButton() {
             const selectedAddress = document.getElementById('selectedAddress').value;
             const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked');
+            const newFullName = document.getElementById('newFullName').value.trim();
+            const newStreet = document.getElementById('newStreet').value.trim();
+            const newCity = document.getElementById('newCity').value.trim();
+            const newState = document.getElementById('newState').value.trim();
+            const newCountry = document.getElementById('newCountry').value.trim();
+            const newPostalCode = document.getElementById('newPostalCode').value.trim();
 
-            if (!selectedAddress && !document.getElementById('newFullName').value) {
-                alert("Please fill out all address fields or select a saved address.");
-                return;
+            if ((selectedAddress && paymentMethod) || (newFullName && newStreet && newCity && newState && newCountry && newPostalCode)) {
+                document.getElementById('payBtn').disabled = false;
+            } else {
+                document.getElementById('payBtn').disabled = true;
             }
+        }
 
-            if (!paymentMethod) {
-                alert("Please select a payment method.");
-                return;
-            }
-
-            // Initialize Razorpay
-            const options = {
-                key: '<YOUR_RAZORPAY_KEY>', // Your Razorpay Key ID
-                amount: <%= total * 100 %>, // Amount in paise
-                currency: 'INR',
-                name: 'Your Company Name',
-                description: 'Test Transaction',
-                image: 'https://your-logo-url.com/logo.png',
-                order_id: '<%= orderId %>', // Pass the order_id generated in your backend
-                handler: function (response) {
-                    // Assuming you are using Razorpay checkout on the frontend
-                    fetch('/verify-payment', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature
-                        })
-                    }).then(res => res.json()).then(data => {
-                        if (data.success) {
-                            window.location.href = '/order-success'; // Redirect to success page
-                        } else {
-                            alert('Payment verification failed');
-                        }
-                    });
-                },
-                prefill: {
-                    name: document.getElementById('newFullName').value || '',
-                    email: 'customer@example.com', // Fetch customer's email
-                    contact: '9999999999' // Fetch customer's contact number
-                },
-                notes: {
-                    address: document.getElementById('newStreet').value || ''
-                },
-                theme: {
-                    color: '#F37254'
-                }
-            };
-
-            const razorpay = new Razorpay(options);
-            razorpay.open();
-        };
+        document.querySelectorAll('input[name="paymentMethod"]').forEach(input => {
+            input.addEventListener('change', enablePlaceOrderButton);
+        });
     </script>
+<!--===============================================================================================-->	
+<script src="vendor/jquery/jquery-3.2.1.min.js"></script>
+<!--===============================================================================================-->
+	<script src="vendor/animsition/js/animsition.min.js"></script>
+<!--===============================================================================================-->
+	<script src="vendor/bootstrap/js/popper.js"></script>
+	<script src="vendor/bootstrap/js/bootstrap.min.js"></script>
+<!--===============================================================================================-->
+	<script src="vendor/select2/select2.min.js"></script>
+	<script>
+		$(".js-select2").each(function(){
+			$(this).select2({
+				minimumResultsForSearch: 20,
+				dropdownParent: $(this).next('.dropDownSelect2')
+			});
+		})
+	</script>
+<!--===============================================================================================-->
+	<script src="vendor/MagnificPopup/jquery.magnific-popup.min.js"></script>
+<!--===============================================================================================-->
+	<script src="vendor/perfect-scrollbar/perfect-scrollbar.min.js"></script>
+	<script>
+		$('.js-pscroll').each(function(){
+			$(this).css('position','relative');
+			$(this).css('overflow','hidden');
+			var ps = new PerfectScrollbar(this, {
+				wheelSpeed: 1,
+				scrollingThreshold: 1000,
+				wheelPropagation: false,
+			});
 
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+			$(window).on('resize', function(){
+				ps.update();
+			})
+		});
+	</script>
+<!--===============================================================================================-->
+	<script src="js/main.js"></script>
+
 </body>
 </html>

@@ -16,20 +16,22 @@ const orderSchema = new mongoose.Schema({
         state: { type: String, required: true },
         country: { type: String, required: true },
         postalCode: { type: String, required: true }
-       
     },
-    paymentMethod: { type: String, enum: ['bankTransfer', 'cashOnDelivery'], required: true },
+    paymentMethod: { type: String, enum: ['bankTransfer', 'cashOnDelivery', 'razorpay'], required: true },
     subtotal: { type: Number, required: true },
+    discount: { type: Number, default: 0 },  // New field for combined offer and coupon discounts
     shipping: { type: Number, required: true },
     total: { type: Number, required: true },
-    status: { type: String, enum: ['pending', 'shipped', 'delivered', 'canceled'], default: 'pending' },
+    status: { type: String, enum: ['pending', 'shipped', 'delivered', 'cancelled', 'paid'], default: 'pending' },
     cancelledAt: { type: Date },
     deliveredAt: { type: Date },
+    razorpayOrderId: { type: String },
+    razorpayPaymentId: { type: String },
+    razorpaySignature: { type: String }
 }, { timestamps: true });
 
 orderSchema.pre('save', function (next) {
     if (this.isNew) {
-        // Use backticks for template literal
         this.OrderId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     }
     next();

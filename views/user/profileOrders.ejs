@@ -28,7 +28,7 @@
                     <!-- Total price for the order -->
                     <div class="flex justify-between mt-4">
                         <div><strong>Total:</strong> $<%= order.total.toFixed(2) %></div>
-
+                    
                         <!-- Status, adjusted for pending status -->
                         <div class="ml-6">
                             <style>
@@ -36,17 +36,17 @@
                                     color: orange; /* Change to your preferred color */
                                     font-weight: bold;
                                 }
-
+                    
                                 .status-shipped {
                                     color: blue; /* Change to your preferred color */
                                     font-weight: bold;
                                 }
-
+                    
                                 .status-delivered {
                                     color: green; /* Change to your preferred color */
                                     font-weight: bold;
                                 }
-
+                    
                                 .status-cancelled {
                                     color: red; /* Change to your preferred color */
                                     font-weight: bold;
@@ -60,7 +60,7 @@
                                     </span>
                                 <% } else if (order.status === 'shipped') { %>
                                     <span class="status-shipped">
-                                        Shipped  %>
+                                        Shipped
                                     </span>
                                 <% } else if (order.status === 'delivered') { %>
                                     <span class="status-delivered">
@@ -78,14 +78,21 @@
                             </div>
                         </div>
                     </div>
-
+                    
                     <!-- Cancel button, shown only if order is not cancelled or delivered -->
                     <% if (order.status !== 'cancelled' && order.status !== 'delivered') { %>
                         <form action="/orders/cancel/<%= order._id %>" method="POST" class="inline mt-2">
                             <button type="submit" class="text-red-600 hover:text-red-800">Cancellation</button>
                         </form>
-                        
                     <% } %>
+                    
+                    <!-- Return button, shown only if order is delivered -->
+                    <% if (order.status === 'delivered') { %>
+                        <form action="/orders/return/<%= order._id %>" method="POST" class="inline mt-2">
+                            <button type="submit" class="text-blue-600 hover:text-blue-800">Return</button>
+                        </form>
+                    <% } %>
+                    
                 </li>
             <% }) %>
         </ul>

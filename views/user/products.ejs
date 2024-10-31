@@ -4,6 +4,12 @@
 	<title>Product</title>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">	
+<style>
+	.wishlist-btn {
+		font-size: 0.9rem;
+	}
+	</style>
 <!--===============================================================================================-->	
 	<link rel="icon" type="image/png" href="images/icons/favicon.png"/>
 <!--===============================================================================================-->
@@ -125,7 +131,7 @@
                             </a>
                         </div>
 
-                        <a href="#" class="dis-block icon-header-item cl2 hov-cl1 trans-04 p-l-22 p-r-11 icon-header-noti" data-notify="0">
+                        <a href="/wishlist" class="dis-block icon-header-item cl2 hov-cl1 trans-04 p-l-22 p-r-11 icon-header-noti" data-notify="0">
                             <i class="zmdi zmdi-favorite-outline"></i>
                         </a>
                     </div>
@@ -284,25 +290,97 @@
 											<%= item.title %>
 										</a>
 										<span class="stext-105 cl3">
-											$<%= item.price %>
+											<% if (item.hasDiscount) { %>
+												<span style="text-decoration: line-through; color: red;">
+													$<%= item.price.toFixed(2) %>
+												</span>
+												<span style="color: green; font-weight: bold;">
+													$<%= item.discountedPrice.toFixed(2) %>
+												</span>
+											<% } else { %>
+												$<%= item.price.toFixed(2) %>
+											<% } %>
 										</span>
+										
 									</div>
 								</div>
-								<div>
+								
+								<div class="d-flex align-items-center mt-2"> <!-- Flex container for buttons -->
+									<!-- Wishlist Button -->
+									<form action="/wishlistAdd/<%= item._id %>" method="POST" id="wishlist-form-<%= item._id %>" class="me-2">
+										<input type="hidden" name="productId" value="<%= item._id %>">
+										<button type="button" class="btn btn-outline-secondary py-2 px-4 rounded wishlist-btn">
+											<i class="bi bi-bookmark"></i> wishlist
+										</button>
+									</form>
+								
+									<!-- Add to Cart Button -->
 									<form action="/cart/add" method="POST" id="add-to-cart-form-<%= item._id %>">
 										<input type="hidden" name="productId" value="<%= item._id %>">
 										
 										<% if (item.stock > 0) { %>
-											<button type="submit" class="btn btn-outline-primary py-2 px-4 rounded">Add to Cart</button>
+											<button type="submit" class="btn btn-outline-primary py-2 px-4 rounded"><i class="bi bi-cart-check me-1"></i> Add Cart</button>
 										<% } else { %>
 											<button type="button" class="btn btn-outline-danger py-2 px-4 rounded opacity-70 cursor-not-allowed" disabled>Sold Out</button>
 										<% } %>
 									</form>
 								</div>
+								
+								<script>
+								let isSubmitting = false;
+								
+								document.addEventListener('DOMContentLoaded', function() {
+									const wishlistButtons = document.querySelectorAll('.wishlist-btn');
+								
+									wishlistButtons.forEach(button => {
+										button.addEventListener('click', function(e) {
+											e.preventDefault(); // Prevent default form submission
+								
+											if (isSubmitting) return; // Prevent multiple submissions
+								
+											const formElement = this.closest('form');
+											const productId = formElement.querySelector('input[name="productId"]').value;
+								
+											isSubmitting = true;
+											button.disabled = true;
+								
+											// Send AJAX request
+											fetch(formElement.action, {
+												method: 'POST',
+												body: JSON.stringify({ productId }),
+												headers: {
+													'Content-Type': 'application/json'
+												}
+											})
+											.then(response => response.json())
+											.then(data => {
+												if (data.success) {
+													// Change icon on success
+													button.innerHTML = '<i class="bi bi-bookmark-heart-fill me-1"></i> Wishlisted';
+													button.classList.add('wishlist-added'); // Optional: Add a class for styling if needed
+													button.disabled = true; // Disable the button after adding to wishlist
+												} else {
+													alert(data.message || 'Could not add to wishlist.');
+													button.disabled = false;
+												}
+												isSubmitting = false;
+											})
+											.catch(error => {
+												console.error('Error:', error);
+												alert('An unexpected error occurred.');
+												button.disabled = false;
+												isSubmitting = false;
+											});
+										});
+									});
+								});
+								</script>
+								
 							</div>
 						</div>
 						<% }); %>
 					</div>
+					
 				
 					<!-- Include SweetAlert script -->
 					<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -332,8 +410,8 @@
 	</div>
 	
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-	<script>
-	$(document).ready(function() {
+<script>
+$(document).ready(function() {
     // Listen for changes on sort, category, and search input
     $('#sort, #category, #search').on('change keyup', function() {
         const sort = $('#sort').val();
@@ -359,30 +437,95 @@
                                 <div class="block2-txt flex-w flex-t p-t-14">
                                     <div class="block2-txt-child1 flex-col-l">
                                         <a href="/product-detail/${item._id}" class="stext-104 cl4 hov-cl1 trans-04 js-name-b2 p-b-6">${item.title}</a>
-                                        <span class="stext-105 cl3">$${item.price}</span>
+                                        <span class="stext-105 cl3">
+                                            ${item.hasDiscount 
+                                                ? `<span style="text-decoration: line-through; color: red;">$${item.price.toFixed(2)}</span>
+                                                   <span style="color: green; font-weight: bold;">$${item.discountedPrice.toFixed(2)}</span>`
+                                                : `$${item.price.toFixed(2)}`}
+                                        </span>
                                     </div>
                                 </div>
-                                <div>
-                                    <form action="/cart/add" method="POST">
+                                <div class="d-flex align-items-center mt-2"> <!-- Flex container for buttons -->
+                                    <!-- Wishlist Button -->
+                                    <form action="/wishlistAdd/${item._id}" method="POST" id="wishlist-form-${item._id}" class="me-2">
+                                        <input type="hidden" name="productId" value="${item._id}">
+                                        <button type="button" class="btn btn-outline-secondary py-2 px-4 rounded wishlist-btn">
+                                            <i class="bi bi-bookmark"></i> wishlist
+                                        </button>
+                                    </form>
+                                    <!-- Add to Cart Button -->
+                                    <form action="/cart/add" method="POST" id="add-to-cart-form-${item._id}">
                                         <input type="hidden" name="productId" value="${item._id}">
                                         ${item.stock > 0 
-                                            ? `<button type="submit" class="bg-blue-500 text-white py-2 px-4 rounded">Add to Cart</button>`
-                                            : `<button type="button" class="bg-red-500 text-white py-2 px-4 rounded opacity-70 cursor-not-allowed" disabled>Sold Out</button>`}
+                                            ? `<button type="submit" class="btn btn-outline-primary py-2 px-4 rounded"><i class="bi bi-cart-check me-1"></i> Add Cart</button>`
+                                            : `<button type="button" class="btn btn-outline-danger py-2 px-4 rounded opacity-70 cursor-not-allowed" disabled>Sold Out</button>`}
                                     </form>
                                 </div>
                             </div>
                         </div>`;
                     $('#product-grid').append(productHtml);  // Add new product to grid
                 });
+                attachWishlistButtonHandlers(); // Re-attach event handlers for wishlist buttons
             },
             error: function(err) {
                 console.error('Error fetching products:', err);
             }
         });
     });
-});
 
-	</script>
+    function attachWishlistButtonHandlers() {
+        let isSubmitting = false;
+
+        const wishlistButtons = document.querySelectorAll('.wishlist-btn');
+
+        wishlistButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent default form submission
+
+                if (isSubmitting) return; // Prevent multiple submissions
+
+                const formElement = this.closest('form');
+                const productId = formElement.querySelector('input[name="productId"]').value;
+
+                isSubmitting = true;
+                button.disabled = true;
+
+                // Send AJAX request
+                fetch(formElement.action, {
+                    method: 'POST',
+                    body: JSON.stringify({ productId }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Change icon on success
+                        button.innerHTML = '<i class="bi bi-bookmark-heart-fill me-1"></i> Wishlisted';
+                        button.classList.add('wishlist-added'); // Optional: Add a class for styling if needed
+                        button.disabled = true; // Disable the button after adding to wishlist
+                    } else {
+                        alert(data.message || 'Could not add to wishlist.');
+                        button.disabled = false;
+                    }
+                    isSubmitting = false;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An unexpected error occurred.');
+                    button.disabled = false;
+                    isSubmitting = false;
+                });
+            });
+        });
+    }
+
+    // Initial attachment of event handlers for wishlist buttons when the page loads
+    attachWishlistButtonHandlers();
+});
+</script>
+
 	
 		
 

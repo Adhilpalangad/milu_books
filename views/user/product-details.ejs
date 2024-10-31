@@ -274,7 +274,17 @@ p {
 						</h4>
 					
 						<span class="mtext-106 cl2" style="font-size: x-large;">
-							$<%= product.price.toFixed(2) %><p style="color: #45a049; font-size: large;">20% OFF</p> <!-- Display product price -->
+							<% if (product.hasDiscount) { %>
+								<span style="text-decoration: line-through; color: red;">
+									$<%= product.price.toFixed(2) %>
+								</span>
+								<span style="color: green; font-weight: bold;">
+									$<%= product.discountedPrice.toFixed(2) %>
+								</span>
+								<!-- Display discount percentage -->
+							<% } else { %>
+								$<%= product.price.toFixed(2) %> <!-- Display product price -->
+							<% } %>
 						</span>
 					
 						<p class="stext-102 cl3 p-t-23">
@@ -323,7 +333,7 @@ p {
 								<% } %>
 							</p>
 						</div>
-				
+					
 						<!-- Add to Cart Form -->
 						<form action="/cart/add" method="POST" id="add-to-cart-form-<%= product._id %>" class="add-to-cart-form">
 							<input type="hidden" name="productId" value="<%= product._id %>">
@@ -337,51 +347,20 @@ p {
 								</button>
 							<% } %>
 						</form>
-						<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js"></script>
-
 						
-
-							
-						
+						<!-- Additional Elements -->
 						<div class="review-row">
 							<p class="bold" style="font-size: 20px; margin-top: 4px;"><b>4.4</b></p>
 							<div class="star-rating">
-							  <i class="far fa-star" data-value="1"></i>
-							  <i class="far fa-star" data-value="2"></i>
-							  <i class="far fa-star" data-value="3"></i>
-							  <i class="far fa-star" data-value="4"></i>
-							  <i class="far fa-star" data-value="5"></i>
+								<i class="far fa-star" data-value="1"></i>
+								<i class="far fa-star" data-value="2"></i>
+								<i class="far fa-star" data-value="3"></i>
+								<i class="far fa-star" data-value="4"></i>
+								<i class="far fa-star" data-value="5"></i>
 							</div>
 							<p>(Reviews 4)</p>
 						</div>
-				
-						<script>
-							const stars = document.querySelectorAll('.star-rating i');
-						  
-							stars.forEach(star => {
-							  star.addEventListener('click', () => {
-								let rating = star.getAttribute('data-value');
-								stars.forEach((s, index) => {
-								  s.classList.toggle('fas', index < rating);
-								  s.classList.toggle('far', index >= rating);
-								});
-							  });
-							});
-						</script>
-				
-						<div class="p-t-33">
-							<div class="icon-row">
-								<img src="/images/icons/assured.349b2ef9.svg" alt="Icon 1" class="icon">
-								<img src="/images/icons/fast.8a0e010e.svg" alt="Icon 2" class="icon">
-								<img src="/images/icons/pivacy.6315f25b.svg" alt="Icon 3" class="icon">
-								<img src="/images/icons/printed.03c036eb.svg" alt="Icon 4" class="icon">
-								<img src="/images/icons/secure.cfe6da21.svg" alt="Icon 5" class="icon">
-							</div>
-							
-							<!-- Other product details can go here -->
-						</div>
-				
+					
 						<div class="pincode-box">
 							<label for="pincode"></label>
 							<input type="number" id="pincode" name="pincode" placeholder="Enter Coupon">
@@ -389,6 +368,7 @@ p {
 						</div>
 						<p style="color: #971a1a; margin-top: 10px;">Please enter Coupon to know your Discount.</p>
 					</div>
+					
 				</div>
 				
             </div>

@@ -50,25 +50,20 @@ router.get('/profile', userAuth, checkoutController.getPersonal)
 router.get('/profile/orders', userAuth, checkoutController.getOrders)
 router.get('/profile/addresses', userAuth, userController.getAddresses)
 router.post('/orders/cancel/:orderId', userAuth, checkoutController.cancelOrder);
-// Route to render the forgot password page
 router.get('/forgot-password', userController.forgotPasswordPage);
-
-// Route to handle the forgot password request
 router.post('/forgot-password', userController.forgotPassword);
-
-// Route to render the verify OTP page
 router.get('/verify-otp-forgot', userController.verifyOtpPass);
-
-// Route to handle OTP verification
 router.post('/verify-otp-forgot', userController.verifyForgotPasswordOtp);
-
-// Route to render the reset password page
 router.get('/reset-password', userController.resetPasswordPage);
-
-// Route to handle password reset
 router.post('/reset-password', userController.resetPassword);
-router.post('/verify-payment', checkoutController.verifyPayment);
+router.post('/verifyPayment',checkoutController.verifyPayment)
+router.post('/validateCoupon',checkoutController.validateCoupon)
+router.get('/wishlist',userController.getWishlistItems) 
+router.post('/wishlistAdd/:id',userController.addBooksWishlist)    
+router.post('/wishlist/remove/:id', userController.removeWishlist)
+router.post('/addtocart/wishlist', cartController.addToCartFromWishlist)
+router.get('/wallet', userController.getWallet)
+router.post('/orders/return/:orderId', checkoutController.returnOrder);
 
-    
 
 module.exports = router;

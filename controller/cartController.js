@@ -12,62 +12,63 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const Category = require('../models/categoryModel');
 const nodemailer = require('nodemailer');
 const sendOtpToEmail = require('../config/sendOtpToEmail');
+const Wishlist = require('../models/wishListModel')
+const Offer = require('../models/offerModel')
 
+    const addToCart = async (req, res) => {
+        const { productId } = req.body;
+        const userId = req.session.user.id;
+        console.log('prodct id',productId)
+        try {
+            let cart = await Cart.findOne({ userId });
+            if (!cart) {
+                cart = new Cart({ userId, items: [] });
+            }
 
-const addToCart = async (req, res) => {
-    const { productId } = req.body;
-    const userId = req.session.user.id;
+            const product = await Book.findById(productId);
+            
+            
+            if (!product) {
+                return res.status(404).json({ success: false, message: 'Product not found' });
+            }
 
-    try {
-        let cart = await Cart.findOne({ userId });
-        if (!cart) {
-            cart = new Cart({ userId, items: [] });
-        }
-
-        const product = await Book.findById(productId);
-        console.log(product);
         
-        if (!product) {
-            return res.status(404).json({ success: false, message: 'Product not found' });
-        }
+            const existingItemIndex = cart.items.findIndex(item => item.productId.toString() === productId);
+            let currentQuantityInCart = 0;
+            if (existingItemIndex >= 0) {
+                currentQuantityInCart = cart.items[existingItemIndex].quantity;
+            }
 
-      
-        const existingItemIndex = cart.items.findIndex(item => item.productId.toString() === productId);
-        let currentQuantityInCart = 0;
-        if (existingItemIndex >= 0) {
-            currentQuantityInCart = cart.items[existingItemIndex].quantity;
-        }
-
-        const requestedQuantity = currentQuantityInCart + 1; 
-        if (requestedQuantity > product.stock) {
-            return res.status(400).json({ 
-                success: false, 
-                message: `Only ${product.stock - currentQuantityInCart} more items can be added to the cart`
-            });
-        }
-
-        if (existingItemIndex >= 0) {
-            if (currentQuantityInCart < product.stock) {
-                cart.items[existingItemIndex].quantity += 1;
-            } else {
+            const requestedQuantity = currentQuantityInCart + 1; 
+            if (requestedQuantity > product.stock) {
                 return res.status(400).json({ 
                     success: false, 
                     message: `Only ${product.stock - currentQuantityInCart} more items can be added to the cart`
                 });
             }
-        } else {
-            cart.items.push({ productId: product._id, quantity: 1 });
+
+            if (existingItemIndex >= 0) {
+                if (currentQuantityInCart < product.stock) {
+                    cart.items[existingItemIndex].quantity += 1;
+                } else {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: `Only ${product.stock - currentQuantityInCart} more items can be added to the cart`
+                    });
+                }
+            } else {
+                cart.items.push({ productId: product._id, quantity: 1 });
+            }
+            
+            
+            await cart.save();
+            
+            
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ success: false, message: 'Error adding to cart' });
         }
-        
-        
-        await cart.save();
-        
-        
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: 'Error adding to cart' });
-    }
-};
+    };
 
 
 
@@ -189,7 +190,6 @@ const updateCartQuantity = async (req, res) => {
 const getCartItems = async (req, res) => {
     try {
         const userId = req.session.user.id;
-        console.log(userId);
         
         if (!userId) {
             return res.redirect('/login');
@@ -201,27 +201,108 @@ const getCartItems = async (req, res) => {
             return res.status(400).send('Your cart is empty');
         }
 
+        // Map cart items for displaying
         const items = cart.items.map(item => ({
             productId: item.productId._id,
             name: item.productId.title,
             imageUrl: item.productId.images[0],
             price: item.productId.price,
-            quantity: item.quantity,
+            quantity: item.quantity
         }));
 
+        // Calculate subtotal
         const subtotal = items.reduce((total, item) => total + item.price * item.quantity, 0);
         
+        // **Apply Offer Logic**
+        let offerDiscount = 0;
+        const currentDate = new Date();
+        const offers = await Offer.find({
+            isActive: true,
+            validFrom: { $lte: currentDate },
+            validUntil: { $gte: currentDate }
+        });
+
+        for (let offer of offers) {
+            const applicableProducts = offer.applicableProducts.map(id => id.toString());
+            const applicableCategories = offer.applicableCategories;
+
+            for (let item of cart.items) {
+                const product = item.productId;
+
+                // Check if the product or its category is eligible for the offer
+                if (applicableProducts.includes(product._id.toString()) || applicableCategories.includes(product.category)) {
+                    offerDiscount += (product.price * item.quantity * offer.discount) / 100;
+                }
+            }
+        }
+
+        // Calculate final totals after applying offer discount
+        const additionalFee = subtotal < 25 ? 5 : 0;
+        const total = subtotal - offerDiscount + additionalFee;
+        console.log('subtotal', subtotal)
+        console.log('offerDiscount', offerDiscount)
+        console.log('total', total)
+        
+        // Fetch addresses for selection on the checkout page
         const addresses = await Address.find({ userId });
 
-        // Calculate shipping cost (if applicable) and total
-        const shippingCost = subtotal > 25 ? 0 : 5; // Example shipping cost logic
-        const total = subtotal + shippingCost; // Calculate total
-
-        // Pass total to the template
-        res.render('user/checkout', { items, subtotal, total, addresses, cart });
+        res.render('user/checkout', { items, subtotal, offerDiscount, addresses, cart, total });
     } catch (error) {
         console.error('Error fetching cart items:', error);
         res.status(500).send('Internal server error');
+    }
+};
+
+const addToCartFromWishlist = async (req, res) => {
+    
+
+    try {
+        const { productId } = req.body;
+    const userId = req.session.user.id;
+        // Find or create a cart for the user
+        let cart = await Cart.findOne({ userId });
+        if (!cart) {
+            cart = new Cart({ userId, items: [] });
+        }
+
+        const product = await Book.findById(productId);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
+
+        // Check if the product is already in the cart
+        const existingItemIndex = cart.items.findIndex(item => item.productId.toString() === productId);
+        let currentQuantityInCart = existingItemIndex >= 0 ? cart.items[existingItemIndex].quantity : 0;
+
+        // Verify stock availability
+        if (currentQuantityInCart + 1 > product.stock) {
+            return res.status(400).json({ 
+                success: false, 
+                message: `Only ${product.stock - currentQuantityInCart} more items can be added to the cart`
+            });
+        }
+
+        // Update quantity if the product is already in the cart, else add as a new item
+        if (existingItemIndex >= 0) {
+            cart.items[existingItemIndex].quantity += 1;
+        } else {
+            cart.items.push({ productId: product._id, quantity: 1 });
+        }
+
+        // Save updated cart
+        await cart.save();
+
+        // Remove the product from the wishlist after adding it to the cart
+        await Wishlist.findOneAndUpdate(
+            { userId },
+            { $pull: { items: { productId: product._id } } }
+        );
+
+        // Redirect to the wishlist page or send a success response
+        res.redirect('/wishlist');
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: 'Error moving item to cart' });
     }
 };
 
@@ -237,5 +318,6 @@ module.exports = {
     getCart,
     removeFromCart,
     updateCartQuantity,
-    getCartItems
+    getCartItems,
+    addToCartFromWishlist
 }

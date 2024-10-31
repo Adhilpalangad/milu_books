@@ -11,7 +11,9 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const Category = require('../models/categoryModel');
 const nodemailer = require('nodemailer');
 const sendOtpToEmail = require('../config/sendOtpToEmail');
-
+const Wishlist = require('../models/wishListModel')
+const Offer = require('../models/offerModel')
+const Wallet = require('../models/walletModel');
 
 const renderSignupPage =  (req, res) => {
     res.render('user/signup', { error: null, message: null });
@@ -212,27 +214,55 @@ const googleLogin = (req, res) => {
 
 const getHome = async (req, res) => {
     try {
-        const user1 = req.session.user.id;
-        console.log('user is ',user1);
+        const userId = req.session.user?.id;
         
-        // Fetch products with active status and populated category information
-        const product = await Book.find({ isActive: true }).populate('categoryId', 'name');
+        // Fetch active products and populate their category
+        const products = await Book.find({ isActive: true }).populate('categoryId', 'name');
         
-        // Fetch the user details based on the session user id
-        const user = await User.findById(user1);
+        // Fetch active offers
+        const offers = await Offer.find({ isActive: true });
 
-        console.log(user.name);
+        const currentDate = new Date(); // Get the current date
+
+        const productsWithOffers = products.map(product => {
+            let maxDiscountedPrice = product.price; // Start with the original price
+            let hasDiscount = false;
         
+            offers.forEach(offer => {
+                const isOfferActive = !offer.validUntil || offer.validUntil > currentDate; // Check if the offer is still valid
+                const isProductEligible = offer.applicableProducts.includes(product._id);
+                const isCategoryEligible = offer.applicableCategories.includes(product.categoryId?.name);
+        
+                if (isOfferActive && (isProductEligible || isCategoryEligible)) {
+                    const calculatedDiscountedPrice = product.price - (product.price * (offer.discount / 100));
+        
+                    // Update maxDiscountedPrice if a better discount is found
+                    if (calculatedDiscountedPrice < maxDiscountedPrice) {
+                        maxDiscountedPrice = calculatedDiscountedPrice;
+                        hasDiscount = true;
+                    }
+                }
+            });
+        
+            return {
+                ...product.toObject(),
+                discountedPrice: maxDiscountedPrice, // Final discounted price (if applicable)
+                hasDiscount // Indicates if any discount was applied
+            };
+        });
+        
+
         // Fetch distinct active categories
         const categories = await Category.find({ isActive: true });
 
-        // Render the page and pass categories to the view
-        res.render('user/home', { product, user, categories });
+        // Render the page and pass categories and products with offers to the view
+        res.render('user/home', { products: productsWithOffers, userId, categories });
     } catch (error) {
         console.error('Error fetching products or categories:', error);
         res.status(500).send("Error fetching products or categories");
     }
-}
+};
+
 
 
 //landing page
@@ -297,22 +327,48 @@ const getProducts = async (req, res) => {
                 break;
         }
 
-        // Fetch the filtered and sorted products
-        const product = await Book.find(filter).sort(sortCriteria).populate('categoryId', 'name');
+        // Fetch active products and populate their category
+        const products = await Book.find(filter).sort(sortCriteria).populate('categoryId', 'name');
+
+        // Fetch active offers
+        const offers = await Offer.find({ isActive: true });
+
+        // Calculate offer price for applicable products
+        const productsWithOffers = products.map(product => {
+            let discountedPrice = null;
+
+            offers.forEach(offer => {
+                const isProductEligible = offer.applicableProducts.includes(product._id);
+                const isCategoryEligible = offer.applicableCategories.includes(product.categoryId?.name);
+
+                if (isProductEligible || isCategoryEligible) {
+                    discountedPrice = product.price - (product.price * (offer.discount / 100));
+                }
+            });
+
+            return {
+                ...product.toObject(),
+                discountedPrice: discountedPrice || product.price, // Use discounted price if applicable, otherwise original price
+                hasDiscount: !!discountedPrice // Boolean to check if discount was applied
+            };
+        });
+
+        // Fetch distinct active categories
         const categories = await Category.find({ isActive: true });
 
         // If the request is an AJAX call, send JSON response
         if (req.xhr) {
-            return res.json({ products: product, categories });
+            return res.json({ products: productsWithOffers, categories });
         }
 
         // Render page for normal request
-        res.render('user/products', { product, categories });
+        res.render('user/products', { product: productsWithOffers, categories });
     } catch (error) {
         console.error('Error fetching products or categories:', error);
         res.status(500).send("Error fetching products or categories");
     }
 };
+
 
 
 
@@ -328,13 +384,37 @@ const getProductDetail = async (req, res) => {
             return res.status(400).json({ message: "Bad request" });
         }
 
-
+        // Fetch product details and populate category
         const product = await Book.findById(productId).populate('categoryId');
-        const products = await Book.find()
+
+        // Fetch active offers
+        const offers = await Offer.find({ isActive: true });
+
+        // Calculate the discounted price for the product
+        let discountedPrice = null;
+        offers.forEach(offer => {
+            const isProductEligible = offer.applicableProducts.includes(product._id);
+            const isCategoryEligible = offer.applicableCategories.includes(product.categoryId?.name);
+
+            if (isProductEligible || isCategoryEligible) {
+                discountedPrice = product.price - (product.price * (offer.discount / 100));
+            }
+        });
+
+        // Prepare the product object with offer details
+        const productWithOffer = {
+            ...product.toObject(),
+            discountedPrice: discountedPrice || product.price, // Use discounted price if applicable, otherwise original price
+            hasDiscount: !!discountedPrice // Boolean to check if discount was applied
+        };
+
         if (!product) {
             return res.status(404).send('Product not found');
         }
-        res.render('user/product-details', { product,products });
+
+        const products = await Book.find(); // Fetch other products if needed
+
+        res.render('user/product-details', { product: productWithOffer, products });
     } catch (error) {
         console.error(error);
         res.status(500).send('Server error');
@@ -388,6 +468,7 @@ const getProfile = async (req, res) => {
         res.status(500).send('Error fetching user data');
     }
 };
+
 
 
 
@@ -580,6 +661,95 @@ const resetPasswordPage = (req, res) => {
     res.render('user/resetPassword', { error: null });
 };
 
+// Controller to get wishlist items
+const getWishlistItems = async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const wishlistItems = await Wishlist.find({ userId })
+            .populate({
+                path: 'productId',
+                select: '_id title images price'
+            });
+        
+        console.log('wish::::::::::', wishlistItems);
+        res.render('user/wishlist', { wishlistItems });
+    } catch (error) {
+        console.error(error);
+        res.redirect('/error');
+    }
+};
+
+
+const addBooksWishlist = async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const productId = req.params.id;
+
+        console.log('product id from params', productId);
+
+        // Check if the product is already in the user's wishlist
+        const existingWishlistItem = await Wishlist.findOne({ userId, productId });
+        console.log('existing id', existingWishlistItem);
+
+        if (existingWishlistItem) {
+            return res.json({ success: false, message: 'Product already in wishlist' });
+        }
+
+        // Create a new wishlist entry
+        const newWishlistItem = new Wishlist({
+            userId,
+            productId
+        });
+
+        await newWishlistItem.save();
+        res.json({ success: true, message: 'Product added to wishlist' });
+    } catch (error) {
+        console.error('Error adding product to wishlist:', error);
+        res.status(500).json({ success: false, message: 'Error adding product to wishlist' });
+    }
+};
+
+const removeWishlist = async (req, res) => {
+    try {
+        const productId = req.params.id;
+        const userId = req.session.user.id;
+        console.log('user ', userId)
+        // Use `findOneAndDelete` directly on the `Wishlist` model with both filters
+        await Wishlist.findOneAndDelete({ userId, productId });
+        
+        res.redirect('/wishlist');
+    } catch (error) {
+        console.error(error);
+        res.redirect('/error'); // Optionally handle error by redirecting to an error page
+    }
+};
+
+ // Adjust the path as necessary
+
+const getWallet = async (req, res) => {
+
+    try {
+        console.log(req.session);
+        
+        const userId = req.session.user.id;
+                console.log(userId);
+        
+        
+        const wallet = await Wallet.findOne({ userId })
+        console.log('wallet details ' , wallet);
+        if (!wallet) {
+            return res.render('user/wallet', { wallet: null, message: 'Wallet not found' });
+        }
+
+        // Pass the wallet data to the template
+        res.render('user/wallet', { wallet });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Server error');
+    }
+};
+
+
 
 module.exports = {
     userSignup,
@@ -606,8 +776,11 @@ module.exports = {
     verifyForgotPasswordOtp,
     forgotPasswordPage,
     verifyOtpPass,
-    resetPasswordPage
-
+    resetPasswordPage,
+    getWishlistItems,
+    addBooksWishlist,
+    removeWishlist,
+    getWallet
 
     
 }

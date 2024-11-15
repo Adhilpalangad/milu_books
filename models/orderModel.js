@@ -22,12 +22,16 @@ const orderSchema = new mongoose.Schema({
     discount: { type: Number, default: 0 },  // New field for combined offer and coupon discounts
     shipping: { type: Number, required: true },
     total: { type: Number, required: true },
-    status: { type: String, enum: ['pending', 'shipped', 'delivered', 'cancelled', 'paid'], default: 'pending' },
+    status: { type: String, enum: ['failed', 'shipped', 'delivered', 'cancelled', 'paid','returned','pending'], default: 'pending' },
     cancelledAt: { type: Date },
     deliveredAt: { type: Date },
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
-    razorpaySignature: { type: String }
+    razorpaySignature: { type: String },
+    returnReason: { type: String }, 
+    returnStatus: { type: String, enum: ['pending', 'approved', 'rejected','requested'], default: 'pending' }, // Return status
+    returnedAt: { type: Date }, // Date when return was approved
+    paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' }
 }, { timestamps: true });
 
 orderSchema.pre('save', function (next) {

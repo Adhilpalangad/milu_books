@@ -9,9 +9,7 @@ const adminAuthed = require("../middileware/admin/adminAuthed")
 
 router.get('/', adminAuthed, adminController.login)
 router.post('/',adminController.postLogin)
-router.get('/home',adminAuth, (req, res) => {
-    res.render('admin/home')
-})
+
 router.get('/users',adminAuth,adminController.adminUsers)
 router.post('/blockUser',adminController.blockUser);
 router.post('/unblockUser', adminController.unblockUser)
@@ -46,8 +44,16 @@ router.get('/editOffer/:offerId', adminController.renderEditOfferPage);
 router.post('/updateOffer/:offerId', adminController.updateOffer);
 router.post('/toggleOfferStatus/:offerId', adminController.toggleOfferStatus);
 router.get('/report',adminController.getDeliveredSalesReport)
-
 router.route('/downloadSalesReport')
   .get(adminController.downloadSalesReport)
   .post(adminController.downloadSalesReport);
+router.post('/filterSalesReport',adminController.filterSalesReport)
+  router.post('/orders/:orderId/return/approve',adminController.approveReturnRequest); // Admin approval
+router.post('/orders/:orderId/return/reject', adminController.rejectReturnRequest);  
+router.get('/home', adminController.renderDashboard);
+
+router.get('/dashboard-data', adminController.getDashboardData);
+
+
+
 module.exports = router

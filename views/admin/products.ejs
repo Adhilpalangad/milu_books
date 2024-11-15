@@ -532,16 +532,17 @@ Edit
                                     document.getElementById('editBookStock').value = bookStock;
                         
                                     const existingImagesContainer = document.getElementById('existingImages');
-                                    existingImagesContainer.innerHTML = '';
-                        
-                                    bookImages.forEach((image, index) => {
-                                        const imageElement = `
-                                            <div class="col-sm-4 mb-3">
-                                                <img src="/${image}" alt="Book Image ${index + 1}" style="width: 100%; height: auto;">
-                                                
-                                            </div>`;
-                                        existingImagesContainer.innerHTML += imageElement;
-                                    });
+existingImagesContainer.innerHTML = '';
+existingImagesContainer.classList.add('d-flex', 'flex-wrap', 'gap-3'); // Add flex properties for horizontal alignment
+
+bookImages.forEach((image, index) => {
+    const imageElement = `
+        <div style="flex: 0 0 auto; width: 150px;"> <!-- Set width to control size -->
+            <img src="/${image}" alt="Book Image ${index + 1}" style="width: 100%; height: auto;">
+        </div>`;
+    existingImagesContainer.innerHTML += imageElement;
+});
+
                                 });
                         
                                 document.querySelectorAll('input[name="images"]').forEach(input => {

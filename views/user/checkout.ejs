@@ -300,7 +300,7 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
                 <!-- Right Column: Address Selection -->
                 <div>
                     <h4>Select Saved Address</h4>
-                    <form id="checkoutForm" method="POST" action="/checkout">
+                    <form id="checkoutForm" >
                         <div class="form-group">
                             <label for="addressSelect">Saved Addresses</label>
                             <select id="addressSelect" class="form-control" onchange="selectAddressFromDropdown()" required>
@@ -325,25 +325,163 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
                         <button type="button" class="btn btn-primary mt-3" onclick="showAddAddressForm()">Add New Address</button>
                 
                         <h4 class="mt-4">Payment Method</h4>
-                        <div class="form-group">
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="paymentMethod" id="bankTransfer" value="bankTransfer" required>
-                                <label class="form-check-label" for="bankTransfer">Bank Transfer</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="paymentMethod" id="cashOnDelivery" value="cashOnDelivery" required>
-                                <label class="form-check-label" for="cashOnDelivery">Cash on Delivery</label>
-                            </div>
-                        </div>
+<div class="form-group">
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="paymentMethod" id="cashOnDelivery" value="cashOnDelivery" required>
+        <label class="form-check-label" for="cashOnDelivery">Cash on Delivery</label>
+    </div>
+    <div class="form-check">
+        <input class="form-check-input" type="radio" name="paymentMethod" id="razorpay" value="razorpay" required>
+        <label class="form-check-label" for="razorpay">Pay with Razorpay</label>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const total = <%= total %>;
+        const codOption = document.getElementById("cashOnDelivery");
+
+        if (total > 1000) {
+            // Disable the COD option
+            codOption.disabled = true;
+            // Show SweetAlert notification
+            Swal.fire({
+                icon: 'info',
+                title: 'Notice',
+                text: 'Cash on Delivery is unavailable for orders above 1000. Please choose Razorpay.',
+                confirmButtonText: 'Okay'
+            });
+        }
+    });
+</script>
+
+                        
+                        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+                            
+                            
+                             
+                        
                         <div class="form-group mt-3">
                             <label for="couponCode">Coupon Code</label>
                             <input type="text" id="couponCode" name="couponCode" class="form-control" placeholder="Enter coupon code">
-                            <button type="button" class="btn btn-secondary mt-2" onclick="applyCoupon()">Apply Coupon</button>
+                            <button type="button" id="couponButton" class="btn btn-secondary mt-2" onclick="toggleCoupon()">Apply Coupon</button>
                         </div>
                 
-                        <button type="submit" class="btn btn-success">Place Order</button>
+                        <button type="submit" class="btn btn-success" id="payment-button">Place Order</button>
                     </form>
                 </div>
+                
+                <script>
+                    document.querySelector("#checkoutForm").addEventListener("submit", handlePayment);
+                
+                    async function handlePayment(e) {
+                        e.preventDefault();
+                        
+                        // Collect form data as a FormData object
+                        let formData = new FormData(document.querySelector("#checkoutForm"));
+                        
+                        // Convert FormData to a plain object and add paymentMethod
+                        let formDataObject = Object.fromEntries(formData.entries());
+                        const selectedPaymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+                        formDataObject.paymentMethod = selectedPaymentMethod;
+                        
+                        if (selectedPaymentMethod === 'razorpay') {
+                            try {
+                                // Send form data as JSON to the server to create the order
+                                const response = await fetch('/checkout', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify(formDataObject),
+                                });
+                
+                                if (!response.ok) {
+                                    const errorMessage = await response.text();
+                                    throw new Error(errorMessage || 'Failed to create order');
+                                }
+                
+                                const data = await response.json();
+                
+                                // Configure Razorpay options
+                                const options = {
+                                    key: 'rzp_test_a2OtfvMdRVJCmD', // Replace with your Razorpay key
+                                    amount: data.amount, // Amount from backend in the smallest currency unit
+                                    currency: data.currency,
+                                    name: 'Your Company Name',
+                                    description: 'Order Payment',
+                                    order_id: data.orderId, // Order ID from backend
+                                    handler: async function (response) {
+                        // Verify the payment on the server
+                                        const verifyResponse = await fetch('/verify-razorpay-payment', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify({
+                                            razorpay_order_id: response.razorpay_order_id,
+                                            razorpay_payment_id: response.razorpay_payment_id,
+                                            razorpay_signature: response.razorpay_signature,
+                                        }),
+                                    });
+
+                                    const verificationData = await verifyResponse.json();
+                                    if (verifyResponse.ok) {
+                                        // Assuming verificationData contains the order ID
+                                        const orderId = verificationData.orderId; // Adjust this line based on your backend response structure
+                                        window.location.href = `/success?orderId=${orderId}`; // Include the order ID in the redirect URL
+                                    } else {
+                                        alert('Payment verification failed. Please contact support.');
+                                        console.error('Payment verification failed:', verificationData);
+                                    }
+                                },
+
+                                theme: {
+                                    color: '#F37254', // Customize your theme color
+                                }
+                            };
+                
+                                // Open Razorpay payment modal
+                                const rzp = new Razorpay(options);
+                                rzp.on('payment.failed', function (response) {
+                                    alert('Payment failed. Please try again or use a different method.');
+                                    console.error('Payment failed:', response.error);
+                                });
+                                rzp.open();
+                            } catch (error) {
+                                console.error('Error during Razorpay checkout:', error);
+                                alert('An error occurred while processing your payment. Please try again.');
+                            }
+                        } else {
+                            try {
+                const response = await fetch('/checkout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formDataObject),
+                });
+
+                if (!response.ok) {
+                    const errorMessage = await response.text();
+                    throw new Error(errorMessage || 'Failed to process non-Razorpay payment');
+                }
+
+                const data = await response.json(); // Assuming the backend sends back the order ID in the response
+                const orderId = data.orderId; // Adjust this line based on your backend response structure
+
+                // Redirect to success page with order ID
+                window.location.href = `/success?orderId=${orderId}`;
+            } catch (error) {
+                console.error('Error during non-Razorpay payment processing:', error);
+                alert('An error occurred while processing your payment. Please try again.');
+            }
+        }
+    }
+</script>
+                
     <div id="newAddressForm" style="display: none;">
         <h4 class="mt-4">New Address</h4>
         <div class="form-group">
@@ -374,40 +512,78 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
             </div>
         </div>
     </div>
-    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
             //=========================script for coupon========================
-        let subtotal = <%= subtotal %>; // Set the subtotal variable from your server-side code
-                
-                    function applyCoupon() {
-                        const couponCode = document.getElementById('couponCode').value;
-                
-                        // Make an AJAX call to validate the coupon
-                        fetch('/validateCoupon', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ couponCode, subtotal })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.total !== undefined) {
-                                // Update total amount and discount
-                                document.getElementById('totalAmount').innerText = `₹${data.total.toFixed(2)}`;
-                                document.getElementById('discountAmount').innerText = `- ₹${(subtotal - data.total).toFixed(2)}`;
-                            } else {
-                                // Handle errors
-                                alert(data.message);
-                                // Reset to original subtotal if needed
-                                document.getElementById('totalAmount').innerText = `₹${subtotal.toFixed(2)}`;
-                                document.getElementById('discountAmount').innerText = '- ₹0';
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error applying coupon:', error);
-                        });
-                    }
+            let subtotal = <%= subtotal %>; // Set subtotal from server-side code
+let couponApplied = false;
+let discountedTotal = subtotal; // Initialize discountedTotal with the initial subtotal
+
+function toggleCoupon() {
+    if (!couponApplied) {
+        applyCoupon();
+    } else {
+        removeCoupon();
+    }
+}
+
+async function applyCoupon() {
+    const couponCode = document.getElementById('couponCode').value;
+
+    const response = await fetch('/validateCoupon', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ couponCode, subtotal })
+    });
+
+    const data = await response.json();
+    if (response.ok && data.total !== undefined) {
+        discountedTotal = Math.round(data.total * 100); // Convert to integer for Razorpay (e.g., ₹100 -> 10000 paise)
+        let shippingFee = discountedTotal < 2500 ? 500 : 0; // Adjust for smallest currency unit
+        discountedTotal += shippingFee;
+
+        document.getElementById('totalAmount').innerText = `₹${(discountedTotal / 100).toFixed(2)}`;
+        document.getElementById('discountAmount').innerText = `- ₹${((subtotal * 100 - discountedTotal) / 100).toFixed(2)}`;
+        document.getElementById('couponButton').innerText = "Remove Coupon";
+        couponApplied = true;
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Coupon Applied!',
+            text: `Discount applied. New total: ₹${(discountedTotal / 100).toFixed(2)} (Shipping Fee: ₹${(shippingFee / 100).toFixed(2)})`,
+            confirmButtonText: 'OK'
+        });
+    } else {
+        Swal.fire({
+            icon: 'error',
+            title: 'Invalid Coupon',
+            text: data.message || 'Please try a valid coupon code.',
+            confirmButtonText: 'OK'
+        });
+
+        document.getElementById('totalAmount').innerText = `₹${(subtotal / 100).toFixed(2)}`;
+        document.getElementById('discountAmount').innerText = '- ₹0';
+    }
+}
+
+function removeCoupon() {
+    discountedTotal = subtotal * 100; // Reset to original subtotal in smallest currency unit
+    document.getElementById('totalAmount').innerText = `₹${(subtotal).toFixed(2)}`;
+    document.getElementById('discountAmount').innerText = '- ₹0';
+    document.getElementById('couponCode').value = '';
+    document.getElementById('couponButton').innerText = "Apply Coupon";
+    couponApplied = false;
+
+    Swal.fire({
+        icon: 'info',
+        title: 'Coupon Removed',
+        text: 'The coupon has been removed.',
+        confirmButtonText: 'OK'
+    });
+}
 
         //=========================script for adddress========================
        
@@ -477,7 +653,10 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
         document.querySelectorAll('input[name="paymentMethod"]').forEach(input => {
             input.addEventListener('change', enablePlaceOrderButton);
         });
+
+        
     </script>
+    
 <!--===============================================================================================-->	
 <script src="vendor/jquery/jquery-3.2.1.min.js"></script>
 <!--===============================================================================================-->

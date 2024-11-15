@@ -39,10 +39,11 @@ router.post('/profile/update', userAuth,userController.profileEdit)
 router.post('/addresses/add', userAuth, userController.addAddress);
 router.post('/addresses/edit/:addressId', userAuth, userController.editAddress);
 router.post('/addresses/delete/:addressId', userAuth, userController.deleteAddress);
-router.post('/cart/add', userAuth, cartController.addToCart); 
+router.post('/cart/add/:productId', userAuth, cartController.addToCart); 
 router.get('/cart', userAuth, cartController.getCart); 
 router.post('/cart/remove', userAuth, cartController.removeFromCart);
 router.post('/cart/update-quantity/:productId', userAuth, cartController.updateCartQuantity)
+router.post('/verify-razorpay-payment', checkoutController.verifyPayment);
 router.post('/checkout', userAuth, checkoutController.processCheckout);
 router.get('/checkout', userAuth, cartController.getCartItems)
 router.get('/success', userAuth,checkoutController.orderPlaced)
@@ -63,7 +64,12 @@ router.post('/wishlistAdd/:id',userController.addBooksWishlist)
 router.post('/wishlist/remove/:id', userController.removeWishlist)
 router.post('/addtocart/wishlist', cartController.addToCartFromWishlist)
 router.get('/wallet', userController.getWallet)
-router.post('/orders/return/:orderId', checkoutController.returnOrder);
-
+router.post('/orders/return/:orderId', checkoutController.returnOrderRequest); // User return request
+router.get('/orders/:orderId/invoice',checkoutController.getInvoice)
+router.put('/update-order-status/:orderId',checkoutController.updateOrderStatus)
+router.get('/order-details/:orderId',checkoutController.retryPayment)
+router.get('/contact', userController.contactPage)
+router.get('/about', userController.aboutPage)
+router.post('/cart/addProducts/:productId', userAuth, cartController.addToCart); 
 
 module.exports = router;

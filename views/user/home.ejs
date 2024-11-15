@@ -117,13 +117,13 @@
 									<span class="stext-105 cl3">
 										<% if (item.hasDiscount) { %>
 											<span style="text-decoration: line-through; color: red;">
-												$<%= item.price.toFixed(2) %>
+												₹<%= item.price.toFixed(2) %>
 											</span>
 											<span style="color: green; font-weight: bold;">
-												$<%= item.discountedPrice.toFixed(2) %>
+												₹<%= item.discountedPrice.toFixed(2) %>
 											</span>
 										<% } else { %>
-											$<%= item.price.toFixed(2) %>
+											₹<%= item.price.toFixed(2) %>
 										<% } %>
 									</span>
 								</div>
@@ -137,7 +137,7 @@
 										</button>
 									</form>
 			
-									<form action="/cart/add" method="POST" id="add-to-cart-form-<%= item._id %>">
+									<form id="add-to-cart-form-<%= item._id %>">
 										<input type="hidden" name="productId" value="<%= item._id %>">
 										<% if (item.stock > 0) { %>
 											<button type="submit" class="btn btn-primary py-2 px-3 d-flex align-items-center">
@@ -156,70 +156,131 @@
 			
 			<script>
 									
-				document.querySelectorAll('form[id^="add-to-cart-form"]').forEach(form => {
-					form.addEventListener('submit', function(event) {
-						event.preventDefault(); // Prevent the default form submission to show the alert first
+				document.querySelectorAll('form[id^="add-to-cart-form-"]').forEach(form => {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Prevent the form from submitting normally
+
+            const form = e.target;
+
+			console.log();
+			console.log(form);
+
+			let productId = form.id.split('-')[4] 
 			
-						Swal.fire({
-							icon: 'success',
-							title: 'Added to Cart',
-							text: 'The product has been added to your cart!',
-							showConfirmButton: false,
-							timer: 1500
-						}).then(() => {
-							form.submit(); // Continue form submission after the alert
-						});
-					});
-				});
+            const formData = new FormData(form);
+			formData.append('productId',form.id.split('-')[4])
+			
+            try {
+                console.log("Submitting form..."); 
+
+                const response = await fetch(`/cart/add/${productId}`, {
+                    method: 'POST',
+                });
+
+                // Ensure response is in JSON format
+                const data = await response.json(); // Parse the JSON response
+
+                console.log("Response data:", data); // Debugging message to check the response
+
+                // Handle success or failure based on the response
+                if (data.success) {
+                    // If successful, show a success alert with SweetAlert
+                    Swal.fire({
+                        title: 'Success',
+                        text: data.message, // Success message from the server
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    // If unsuccessful, show an error alert
+                    Swal.fire({
+                        title: 'Error',
+                        text: data.message, // Error message from the server
+                        icon: 'error',
+                        confirmButtonText: 'Try Again'
+                    });
+                }
+            } catch (error) {
+                // Handle any errors that occur during the fetch request
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Error',
+                    text: 'An error occurred while adding the item to the cart.',
+                    icon: 'error',
+                    confirmButtonText: 'Try Again'
+                });
+            }
+        });
+    });
 
 				// Make sure to include SweetAlert library in your HTML file
 
 				let isSubmitting = false;
 
 document.addEventListener('DOMContentLoaded', function() {
-    const wishlistButtons = document.querySelectorAll('.wishlist-btn');
+	const wishlistButtons = document.querySelectorAll('.wishlist-btn');
 
-    wishlistButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.preventDefault(); // Prevent default form submission
+	wishlistButtons.forEach(button => {
+		button.addEventListener('click', function(e) {
+			e.preventDefault(); // Prevent default form submission
 
-            if (isSubmitting) return; // Prevent multiple submissions
+			if (isSubmitting) return; // Prevent multiple submissions
 
-            const formElement = this.closest('form');
-            const productId = formElement.querySelector('input[name="productId"]').value;
+			const formElement = this.closest('form');
+			const productId = formElement.querySelector('input[name="productId"]').value;
 
-            isSubmitting = true;
-            button.disabled = true;
+			isSubmitting = true;
+			button.disabled = true;
 
-            // Send AJAX request
-            fetch(formElement.action, {
-                method: 'POST',
-                body: JSON.stringify({ productId }),
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Change icon on success
-                    button.innerHTML = '<i class="bi bi-bookmark me-1"></i> Wishlisted';
-                    button.classList.add('wishlist-added'); // Optional: Add a class for styling if needed
-                    button.disabled = true; // Disable the button after adding to wishlist
-                } else {
-                    alert(data.message || 'Could not add to wishlist.');
-                    button.disabled = false;
-                }
-                isSubmitting = false;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An unexpected error occurred.');
-                button.disabled = false;
-                isSubmitting = false;
-            });
-        });
-    });
+			// Send AJAX request
+			fetch(formElement.action, {
+				method: 'POST',
+				body: JSON.stringify({ productId }),
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					// Change icon on success
+					button.innerHTML = '<i class="bi bi-bookmark-heart-fill me-1"></i> Wishlisted';
+					button.classList.add('wishlist-added');
+					button.disabled = true;
+
+					// Show SweetAlert success message
+					Swal.fire({
+						icon: 'success',
+						title: 'Added to Wishlist!',
+						text: 'The item has been successfully added to your wishlist.',
+						showConfirmButton: false,
+						timer: 1500
+					});
+				} else {
+					// Show SweetAlert error message
+					Swal.fire({
+						icon: 'error',
+						title: 'Oops...',
+						text: data.message || 'Could not add to wishlist.',
+					});
+					button.disabled = false;
+				}
+				isSubmitting = false;
+			})
+			.catch(error => {
+				console.error('Error:', error);
+
+				// Show SweetAlert for unexpected error
+				Swal.fire({
+					icon: 'error',
+					title: 'Unexpected Error',
+					text: 'An unexpected error occurred. Please try again later.',
+				});
+				button.disabled = false;
+				isSubmitting = false;
+			});
+		});
+	});
 });
 
 
@@ -230,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 			<!-- Load more -->
 			<div class="flex-c-m flex-w w-full p-t-45">
-				<a href="#" class="flex-c-m stext-101 cl5 size-103 bg2 bor1 hov-btn1 p-lr-15 trans-04">
+				<a href="/products" class="flex-c-m stext-101 cl5 size-103 bg2 bor1 hov-btn1 p-lr-15 trans-04">
 					Load More
 				</a>
 			</div>

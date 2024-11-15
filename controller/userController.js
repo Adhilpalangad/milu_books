@@ -14,6 +14,7 @@ const sendOtpToEmail = require('../config/sendOtpToEmail');
 const Wishlist = require('../models/wishListModel')
 const Offer = require('../models/offerModel')
 const Wallet = require('../models/walletModel');
+const Cart = require('../models/cartModel')
 
 const renderSignupPage =  (req, res) => {
     res.render('user/signup', { error: null, message: null });
@@ -218,7 +219,8 @@ const getHome = async (req, res) => {
         
         // Fetch active products and populate their category
         const products = await Book.find({ isActive: true }).populate('categoryId', 'name');
-        
+        const wallet = await Wallet.find({ userId });
+
         // Fetch active offers
         const offers = await Offer.find({ isActive: true });
 
@@ -230,8 +232,8 @@ const getHome = async (req, res) => {
         
             offers.forEach(offer => {
                 const isOfferActive = !offer.validUntil || offer.validUntil > currentDate; // Check if the offer is still valid
-                const isProductEligible = offer.applicableProducts.includes(product._id);
-                const isCategoryEligible = offer.applicableCategories.includes(product.categoryId?.name);
+                const isProductEligible = offer.applicableProducts.some(id => id.equals(product._id)); // Check if product ID is in applicableProducts
+                const isCategoryEligible = offer.applicableCategories.some(id => id.equals(product.categoryId?._id)); // Check if category ID is in applicableCategories
         
                 if (isOfferActive && (isProductEligible || isCategoryEligible)) {
                     const calculatedDiscountedPrice = product.price - (product.price * (offer.discount / 100));
@@ -251,17 +253,27 @@ const getHome = async (req, res) => {
             };
         });
         
-
         // Fetch distinct active categories
         const categories = await Category.find({ isActive: true });
 
-        // Render the page and pass categories and products with offers to the view
-        res.render('user/home', { products: productsWithOffers, userId, categories });
+        // Fetch wishlist status
+        const wishlistStatus = await Wishlist.find({ userId });
+
+        // Render the page and pass categories, products with offers, and wishlist status to the view
+        res.render('user/home', { 
+            products: productsWithOffers, 
+            userId, 
+            categories, 
+            wallet, 
+            wishlistStatus: wishlistStatus.map(status => status.productId.toString()) // Convert IDs to strings for easy comparison
+        });
     } catch (error) {
-        console.error('Error fetching products or categories:', error);
-        res.status(500).send("Error fetching products or categories");
+        console.error('Error fetching home page data:', error);
+        req.flash('error', 'An unexpected error occurred while loading the home page.');
+        res.redirect('/error');
     }
 };
+
 
 
 
@@ -284,92 +296,110 @@ const getLand = async (req, res) => {
 
 const getProducts = async (req, res) => {
     try {
-        const { sort, category, search } = req.query;  // Get sort, category, and search from query parameters
-        const filter = { isActive: true };     // Default filter for active products
+        const { sort, category, search, page = 1 } = req.query;
+        const filter = { isActive: true }; // Only show active products
+        const limit = 12;
+        const skip = (page - 1) * limit;
+        const userId = req.session.user.id; // Assuming userId is stored in the session
 
-        // Filter products by category if a category is selected
-        if (category && category !== 'all') {
-            filter.categoryId = category;  // Assuming categoryId in Book schema references Category
+
+        const cart = await Cart.findOne({ userId: userId }, { items: 1 });
+        console.log('cart item is', cart)
+        const itemCount = cart ? cart.items.length : 0;
+        
+        console.log(`Total number of items in cart: ${itemCount}`);  
+                if (category && category !== 'all') {
+            filter.categoryId = category; // Ensure category field matches schema
         }
 
-        // Filter products by search term if provided
         if (search) {
             filter.title = new RegExp(search, 'i'); // Case-insensitive search on title
         }
 
         let sortCriteria = {};
-
-        // Define sorting logic based on the sort option
         switch (sort) {
             case 'price-low-high':
-                sortCriteria.price = 1;   // Ascending
+                sortCriteria.price = 1;
                 break;
             case 'price-high-low':
-                sortCriteria.price = -1;  // Descending
+                sortCriteria.price = -1;
                 break;
             case 'average-ratings':
-                sortCriteria.averageRating = -1;  // Highest rating first
+                sortCriteria.averageRating = -1;
                 break;
             case 'new-arrivals':
-                sortCriteria.createdAt = -1;  // Newest first
+                sortCriteria.createdAt = -1;
                 break;
             case 'a-z':
-                sortCriteria.title = 1;   // Alphabetical order (A-Z)
+                sortCriteria.title = 1;
                 break;
             case 'z-a':
-                sortCriteria.title = -1;  // Reverse alphabetical order (Z-A)
+                sortCriteria.title = -1;
                 break;
             case 'in-stock':
-                filter.stock = { $gt: 0 };  // Only products with stock > 0
-                break;
-            default:
-                sortCriteria = {};  // Default sorting (no specific order)
+                filter.stock = { $gt: 0 };
                 break;
         }
 
-        // Fetch active products and populate their category
-        const products = await Book.find(filter).sort(sortCriteria).populate('categoryId', 'name');
-
-        // Fetch active offers
         const offers = await Offer.find({ isActive: true });
 
-        // Calculate offer price for applicable products
+        const [products, totalProducts] = await Promise.all([
+            Book.find(filter).sort(sortCriteria).skip(skip).limit(limit).populate('categoryId', 'name'),
+            Book.countDocuments(filter)
+        ]);
+
+        const totalPages = Math.ceil(totalProducts / limit);
+
+        const currentDate = new Date();
         const productsWithOffers = products.map(product => {
-            let discountedPrice = null;
+            let maxDiscountedPrice = product.price; // Start with the original price
+            let hasDiscount = false;
 
             offers.forEach(offer => {
-                const isProductEligible = offer.applicableProducts.includes(product._id);
-                const isCategoryEligible = offer.applicableCategories.includes(product.categoryId?.name);
+                const isOfferActive = !offer.validUntil || offer.validUntil > currentDate; // Check if the offer is still valid
+                const isProductEligible = offer.applicableProducts.some(id => id.equals(product._id)); // Check if product ID is in applicableProducts
+                const isCategoryEligible = offer.applicableCategories.some(id => id.equals(product.categoryId?._id)); // Check if category ID is in applicableCategories
 
-                if (isProductEligible || isCategoryEligible) {
-                    discountedPrice = product.price - (product.price * (offer.discount / 100));
+                if (isOfferActive && (isProductEligible || isCategoryEligible)) {
+                    const calculatedDiscountedPrice = product.price - (product.price * (offer.discount / 100));
+
+                    if (calculatedDiscountedPrice < maxDiscountedPrice) {
+                        maxDiscountedPrice = calculatedDiscountedPrice;
+                        hasDiscount = true;
+                    }
                 }
             });
 
             return {
                 ...product.toObject(),
-                discountedPrice: discountedPrice || product.price, // Use discounted price if applicable, otherwise original price
-                hasDiscount: !!discountedPrice // Boolean to check if discount was applied
+                discountedPrice: maxDiscountedPrice, // Final discounted price (if applicable)
+                hasDiscount // Indicates if any discount was applied
             };
         });
 
-        // Fetch distinct active categories
-        const categories = await Category.find({ isActive: true });
-
-        // If the request is an AJAX call, send JSON response
         if (req.xhr) {
-            return res.json({ products: productsWithOffers, categories });
+            return res.json({
+                products: productsWithOffers,
+                totalPages,
+                currentPage: Number(page)
+            });
         }
 
-        // Render page for normal request
-        res.render('user/products', { product: productsWithOffers, categories });
+        res.render('user/products', {
+            product: productsWithOffers, // Pass updated products with discount info
+            categories: await Category.find({ isActive: true }),
+            currentPage: page,
+            totalPages,
+            sort,
+            category,
+            search,
+            itemCount
+        });
     } catch (error) {
-        console.error('Error fetching products or categories:', error);
-        res.status(500).send("Error fetching products or categories");
+        console.error('Error fetching products:', error);
+        res.status(500).send("Error fetching products");
     }
 };
-
-
 
 
 
@@ -384,13 +414,10 @@ const getProductDetail = async (req, res) => {
             return res.status(400).json({ message: "Bad request" });
         }
 
-        // Fetch product details and populate category
-        const product = await Book.findById(productId).populate('categoryId');
+        const product = await Book.findOne({ _id: productId, isActive: true }).populate('categoryId');
 
-        // Fetch active offers
         const offers = await Offer.find({ isActive: true });
 
-        // Calculate the discounted price for the product
         let discountedPrice = null;
         offers.forEach(offer => {
             const isProductEligible = offer.applicableProducts.includes(product._id);
@@ -401,7 +428,6 @@ const getProductDetail = async (req, res) => {
             }
         });
 
-        // Prepare the product object with offer details
         const productWithOffer = {
             ...product.toObject(),
             discountedPrice: discountedPrice || product.price, // Use discounted price if applicable, otherwise original price
@@ -412,7 +438,7 @@ const getProductDetail = async (req, res) => {
             return res.status(404).send('Product not found');
         }
 
-        const products = await Book.find(); // Fetch other products if needed
+        const products = await Book.find({isActive:true}); // Fetch other products if needed
 
         res.render('user/product-details', { product: productWithOffer, products });
     } catch (error) {
@@ -448,13 +474,10 @@ const getProfile = async (req, res) => {
             return res.status(401).send('User not authenticated');
         }
 
-        // Fetch the user details from the database
         const user = await User.findById(userId);
 
-        // Fetch the user's saved addresses
         const addresses = await Address.find({ userId: userId });
         const currentUrl = req.url;
-        // Render the profile page with user details and addresses
         res.render('user/profilePersonal', {
             orders: '',
             currentUrl ,
@@ -462,8 +485,9 @@ const getProfile = async (req, res) => {
             email: user.email,
             phone: user.phone || '',
             gender: user.gender || '', // Assuming gender was added
-            addresses: addresses // Pass the fetched addresses to the view
-        });
+            addresses: addresses,
+            referralCode: user.referralCode || '',
+            });
     } catch (error) {
         res.status(500).send('Error fetching user data');
     }
@@ -475,20 +499,46 @@ const getProfile = async (req, res) => {
 const profileEdit = async (req, res) => {
     try {
         const userId = req.session.user.id;
-        const { name, phone, gender } = req.body;
+        const { name, referralCode, gender } = req.body;
+        
+        const user = await User.findById(userId);
 
-        // Update user details in the database
-        await User.findByIdAndUpdate(userId, { name, phone, gender });
+        let credited = false;
 
-        // Redirect back to the profile page
-        res.redirect('/profile');
+        // If referralCode is provided and has changed, and the wallet has not been credited
+        if (referralCode && referralCode !== user.referralCode) {
+            // Check if the referral code is unique
+            
+
+            // If the wallet hasn't been credited yet, credit it
+            const wallet = await Wallet.findOne({ userId });
+            if (wallet && wallet.transactions.every(tx => tx.message !== 'Referral Code Bonus')) {
+                wallet.balance += 50;
+                wallet.transactions.push({
+                    amount: 50,
+                    transactionType: 'credit',
+                    message: 'Referral Code Bonus',
+                });
+                await wallet.save();
+                credited = true;
+            }
+
+            user.referralCode = referralCode;
+        }
+
+        // Update the user data
+        await User.findByIdAndUpdate(userId, { name, gender });
+
+        // Redirect with query params indicating whether crediting was successful
+        res.redirect(`/profile?credited=${credited}`);
     } catch (error) {
         console.log('Error updating profile:', error);
         res.status(500).send('Error updating profile');
     }
 };
 
-// Fetch user addresses and render profile page
+
+
 const getAddresses = async (req, res) => {
     try {
         const userId = req.session.user.id;
@@ -513,7 +563,7 @@ const getAddresses = async (req, res) => {
 const addAddress = async (req, res) => {
     try {
         const userId = req.session.user.id;
-        const { street, city, state, country, postalCode, isDefault,fullName } = req.body;
+        const { street, city, state, country, postalCode, isDefault, fullName } = req.body;
 
         // If isDefault is true, unset previous default addresses
         if (isDefault) {
@@ -529,14 +579,24 @@ const addAddress = async (req, res) => {
             country,
             postalCode,
             fullName,
-            isDefault: isDefault || false
+            isDefault: isDefault || false,
         });
 
         await newAddress.save();
-        res.redirect('/profile/addresses');
+
+        // Check if the request is AJAX (from checkout page)
+        if (req.xhr) {
+            return res.status(201).json(newAddress); // Return the new address as JSON
+        } else {
+            res.redirect('/profile/addresses'); // For non-AJAX requests, redirect as usual
+        }
     } catch (error) {
-        console.log(error);
-        res.status(500).send('Error adding address');
+        console.error(error);
+        if (req.xhr) {
+            return res.status(500).json({ message: 'Error adding address' });
+        } else {
+            res.status(500).send('Error adding address');
+        }
     }
 };
 
@@ -665,19 +725,34 @@ const resetPasswordPage = (req, res) => {
 const getWishlistItems = async (req, res) => {
     try {
         const userId = req.session.user.id;
+        const limit = 20; // Number of items per page
+        const page = parseInt(req.query.page) || 1;
+        const skip = (page - 1) * limit;
+
         const wishlistItems = await Wishlist.find({ userId })
             .populate({
                 path: 'productId',
                 select: '_id title images price'
-            });
-        
-        console.log('wish::::::::::', wishlistItems);
-        res.render('user/wishlist', { wishlistItems });
+            })
+            .sort({ createdAt: -1 }) // Sort by most recent additions
+            .skip(skip)
+            .limit(limit);
+
+        const totalItems = await Wishlist.countDocuments({ userId });
+
+        res.render('user/wishlist', {
+            wishlistItems,
+            currentPage: page,
+            totalPages: Math.ceil(totalItems / limit),
+            hasNextPage: page < Math.ceil(totalItems / limit)
+        });
     } catch (error) {
-        console.error(error);
+        console.error('Error fetching wishlist items:', error);
+        req.flash('error', 'Failed to load wishlist items.');
         res.redirect('/error');
     }
 };
+
 
 
 const addBooksWishlist = async (req, res) => {
@@ -685,11 +760,8 @@ const addBooksWishlist = async (req, res) => {
         const userId = req.session.user.id;
         const productId = req.params.id;
 
-        console.log('product id from params', productId);
-
         // Check if the product is already in the user's wishlist
         const existingWishlistItem = await Wishlist.findOne({ userId, productId });
-        console.log('existing id', existingWishlistItem);
 
         if (existingWishlistItem) {
             return res.json({ success: false, message: 'Product already in wishlist' });
@@ -702,12 +774,21 @@ const addBooksWishlist = async (req, res) => {
         });
 
         await newWishlistItem.save();
-        res.json({ success: true, message: 'Product added to wishlist' });
+
+        // Return the updated wishlist status
+        const wishlistStatus = await Wishlist.find({ userId }).select('_id productId').lean();
+
+        res.json({
+            success: true,
+            message: 'Product added to wishlist',
+            wishlistStatus
+        });
     } catch (error) {
         console.error('Error adding product to wishlist:', error);
-        res.status(500).json({ success: false, message: 'Error adding product to wishlist' });
+        res.status(500).json({ success: false, message: 'An unexpected error occurred.' });
     }
 };
+
 
 const removeWishlist = async (req, res) => {
     try {
@@ -749,7 +830,13 @@ const getWallet = async (req, res) => {
     }
 };
 
+const contactPage = (req, res) => {
+    res.render('user/contact')
+}
 
+const aboutPage = (req, res) => {
+    res.render('user/about')
+}
 
 module.exports = {
     userSignup,
@@ -780,7 +867,8 @@ module.exports = {
     getWishlistItems,
     addBooksWishlist,
     removeWishlist,
-    getWallet
-
+    getWallet,
+    contactPage,
+    aboutPage
     
 }

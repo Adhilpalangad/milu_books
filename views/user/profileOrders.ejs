@@ -7,92 +7,300 @@
             <% orders.forEach(order => { %>
                 <li class="mb-4 p-4 border-b flex flex-col">
                     <!-- Product details for each item in the order -->
-                    <div class="flex-grow">
-                        <% order.items.forEach(item => { %>
-                            <div class="flex items-center mb-4">
-                                <!-- Product image -->
-                                <div class="w-24 h-34 mr-6">
-                                    <img src="/<%= item.productId.images[0] %>" alt="Product Image" class="w-full h-full object-cover rounded-md">
-                                </div>
-
-                                <!-- Product details -->
-                                <div class="flex-grow">
-                                    <div><strong>Product Name:</strong> <%= item.productId.title || 'Unnamed Product' %></div>
-                                    <div class="text-sm"><strong>Quantity:</strong> <%= item.quantity %></div>
-                                    <div><strong>Price:</strong> $<%= item.productId.price.toFixed(2) %></div>
-                                </div>
-                            </div>
-                        <% }) %>
+                    <!-- Order Items Section -->
+<!-- Order Items Section -->
+<!-- Order Items Section -->
+<div class="max-w-7xl mx-auto bg-white rounded-lg shadow-lg p-4 my-6">
+    <!-- Order Items Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <% order.items.forEach(item => { %>
+            <div class="bg-gray-50 rounded-lg transition duration-300 hover:bg-gray-100 hover:shadow-md">
+                <div class="flex p-3 space-x-3">
+                    <!-- Product image -->
+                    <div class="w-20 h-20 flex-shrink-0">
+                        <img src="/<%= item.productId.images[0] %>" 
+                             alt="<%= item.productId.title %>" 
+                             class="w-full h-full object-cover rounded-md">
                     </div>
 
-                    <!-- Total price for the order -->
-                    <div class="flex justify-between mt-4">
-                        <div><strong>Total:</strong> $<%= order.total.toFixed(2) %></div>
-                    
-                        <!-- Status, adjusted for pending status -->
-                        <div class="ml-6">
-                            <style>
-                                .status-pending {
-                                    color: orange; /* Change to your preferred color */
-                                    font-weight: bold;
-                                }
-                    
-                                .status-shipped {
-                                    color: blue; /* Change to your preferred color */
-                                    font-weight: bold;
-                                }
-                    
-                                .status-delivered {
-                                    color: green; /* Change to your preferred color */
-                                    font-weight: bold;
-                                }
-                    
-                                .status-cancelled {
-                                    color: red; /* Change to your preferred color */
-                                    font-weight: bold;
-                                }
-                            </style>
-                            <div>
-                                <strong>Status:</strong>
-                                <% if (order.status === 'pending') { %>
-                                    <span class="status-pending">
-                                        Expected delivery on: <%= new Date(new Date(order.createdAt).setDate(new Date(order.createdAt).getDate() + 5)).toLocaleDateString() %>
-                                    </span>
-                                <% } else if (order.status === 'shipped') { %>
-                                    <span class="status-shipped">
-                                        Shipped
-                                    </span>
-                                <% } else if (order.status === 'delivered') { %>
-                                    <span class="status-delivered">
-                                        Delivered on: <%= new Date(order.deliveredAt).toLocaleDateString() %>
-                                    </span>
-                                <% } else if (order.status === 'cancelled') { %>
-                                    <span class="status-cancelled">
-                                        Cancelled on: <%= new Date(order.cancelledAt).toLocaleDateString() %>
-                                    </span>
-                                <% } else { %>
-                                    <span>
-                                        <%= order.status %>
-                                    </span>
-                                <% } %>
+                    <!-- Product details -->
+                    <div class="flex-grow min-w-0">
+                        <h3 class="text-sm font-semibold text-gray-800 truncate">
+                            <%= item.productId.title || 'Unnamed Product' %>
+                        </h3>
+                        <div class="mt-1 text-sm">
+                            <div class="text-gray-600">
+                                Qty: <%= item.quantity %>
+                            </div>
+                            <div class="font-medium text-gray-800">
+                                ₹<%= item.productId.price.toFixed(2) %>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        <% }) %>
+    </div>
+
+    <!-- Order Summary Section -->
+    <div class="mt-6 border-t pt-4">
+        <div class="flex flex-wrap justify-between items-center gap-4">
+            <!-- Total Price -->
+            <div class="text-xl font-bold text-gray-800">
+                Total: ₹<%= order.total.toFixed(2) %>
+            </div>
+
+            <!-- Order Status -->
+            <div class="flex flex-wrap items-center gap-3">
+                <style>
+                    .status-badge {
+                        @apply px-3 py-1 rounded-full text-sm font-medium;
+                    }
+                    .status-pending {
+                        @apply bg-yellow-100 text-yellow-800;
+                    }
+                    .status-shipped {
+                        @apply bg-blue-100 text-blue-800;
+                    }
+                    .status-delivered {
+                        @apply bg-green-100 text-green-800;
+                    }
+                    .status-cancelled {
+                        @apply bg-red-100 text-red-800;
+                    }
+                    .status-return-requested {
+                        @apply bg-purple-100 text-purple-800;
+                    }
+                    .status-return-approved {
+                        @apply bg-teal-100 text-teal-800;
+                    }
+                    .status-return-rejected {
+                        @apply bg-red-100 text-red-800;
+                    }
+                </style>
+
+                <div class="status-badge 
+                    <%= order.status === 'cancelled' ? 'status-cancelled' : 
+                        order.status === 'delivered' ? 'status-delivered' :
+                        order.status === 'shipped' ? 'status-shipped' : 
+                        'status-pending' %>">
                     
-                    <!-- Cancel button, shown only if order is not cancelled or delivered -->
-                    <% if (order.status !== 'cancelled' && order.status !== 'delivered') { %>
-                        <form action="/orders/cancel/<%= order._id %>" method="POST" class="inline mt-2">
-                            <button type="submit" class="text-red-600 hover:text-red-800">Cancellation</button>
-                        </form>
+                    <% if (order.status === 'cancelled') { %>
+                        Cancelled (<%= new Date(order.cancelledAt).toLocaleDateString() %>)
+                    <% } else if (order.status === 'delivered') { %>
+                        Delivered (<%= new Date(order.deliveredAt).toLocaleDateString() %>)
+                        <% if (order.returnStatus === 'requested') { %>
+                            <span class="status-badge status-return-requested ml-2">
+                                Return Requested
+                            </span>
+                        <% } else if (order.returnStatus === 'approved') { %>
+                            <span class="status-badge status-return-approved ml-2">
+                                Return Approved
+                            </span>
+                        <% } else if (order.returnStatus === 'rejected') { %>
+                            <span class="status-badge status-return-rejected ml-2">
+                                Return Rejected
+                            </span>
+                        <% } %>
+                    <% } else if (order.status === 'returned' && order.returnStatus === 'approved') { %>
+                        <span class="status-badge status-return-approved">
+                            Returned (<%= new Date(order.returnedAt).toLocaleDateString() %>)
+                        </span>
+                    <% } else if (order.status === 'shipped') { %>
+                        Shipped
+                        <% } else if (order.paymentStatus === 'failed' && order.paymentMethod !== 'cashOnDelivery') { %>
+                            <button class="btn btn-primary retry-payment-btn" data-order-id="<%= order._id %>">Retry Payment</button>
+                        <% } 
+                         else if (order.status === 'paid' || order.paymentMethod === 'cashOnDelivery') { %>
+                        <% if (!['approved', 'rejected'].includes(order.returnStatus)) { %>
+                            Expected: <%= new Date(new Date(order.createdAt).setDate(new Date(order.createdAt).getDate() + 5)).toLocaleDateString() %>
+                        <% } else { %>
+                            <span class="status-badge status-return-approved">
+                                Return Approved
+                            </span>
+                        <% } %>
+                    <% } else { %>
+                        <%= order.status %>
                     <% } %>
+                </div>
+                <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+                <script>
+                    document.addEventListener("DOMContentLoaded", () => {
+                        document.querySelectorAll(".retry-payment-btn").forEach(button => {
+                            button.addEventListener("click", async function () {
+                                const orderId = this.getAttribute("data-order-id");
+                
+                                try {
+                                    // Fetch order details from server to initiate Razorpay retry
+                                    const response = await fetch(`/order-details/${orderId}`);
+                                    if (!response.ok) {
+                                        throw new Error('Failed to fetch order details');
+                                    }
+                
+                                    const data = await response.json();
+                
+                                    // Configure Razorpay options for retry payment
+                                    const options = {
+                                        key: 'rzp_test_a2OtfvMdRVJCmD', // Replace with your Razorpay key
+                                        amount: data.amount, // Amount in smallest currency unit
+                                        currency: data.currency,
+                                        name: 'Your Company Name',
+                                        description: 'Retry Order Payment',
+                                        order_id: data.orderId, // Use existing Razorpay order ID
+                                        handler: async function (response) {
+                                            // Verify the payment on the server
+                                            const verifyResponse = await fetch('/verify-razorpay-payment', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    razorpay_order_id: response.razorpay_order_id,
+                                                    razorpay_payment_id: response.razorpay_payment_id,
+                                                    razorpay_signature: response.razorpay_signature,
+                                                }),
+                                            });
+                
+                                            const verificationData = await verifyResponse.json();
+                                            if (verifyResponse.ok) {
+                                                window.location.href = `/success?orderId=${data.orderId}`;
+                                            } else {
+                                                alert('Payment verification failed. Please try again.');
+                                                console.error('Payment verification failed:', verificationData);
+                                            }
+                                        },
+                                        theme: { color: '#F37254' },
+                                    };
+                
+                                    // Open Razorpay payment modal for retry
+                                    const rzp = new Razorpay(options);
+                                    rzp.on('payment.failed', function (response) {
+                                        alert('Payment failed. Please try again.');
+                                        console.error('Payment failed:', response.error);
+                                    });
+                                    rzp.open();
+                                } catch (error) {
+                                    console.error('Error during Razorpay retry:', error);
+                                    alert('An error occurred while processing your payment. Please try again.');
+                                }
+                            });
+                        });
+                    });
+                </script>
+                
+
+                <!-- Cancel Button -->
+                <% if (order.status !== 'cancelled' && order.paymentStatus !== 'failed' && order.status !== 'delivered' && order.status !== 'returned' && (order.paymentMethod === 'cashOnDelivery' || order.paymentMethod === 'razorpay')) { %>
+                    <form action="/orders/cancel/<%= order._id %>" method="POST" class="inline-block">
+                        <button type="submit" 
+                                class="bg-red-500 hover:bg-red-600 text-white text-sm font-medium py-1.5 px-3 rounded-full transition duration-300">
+                            Cancel Order
+                        </button>
+                    </form>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- Return Reason (if applicable) -->
+        <% if (order.returnReason && ['approved', 'requested'].includes(order.returnStatus)) { %>
+            <div class="mt-2 text-sm text-gray-600">
+                Return reason: <%= order.returnReason %>
+            </div>
+        <% } %>
+    </div>
+</div>
+                    
                     
                     <!-- Return button, shown only if order is delivered -->
-                    <% if (order.status === 'delivered') { %>
-                        <form action="/orders/return/<%= order._id %>" method="POST" class="inline mt-2">
-                            <button type="submit" class="text-blue-600 hover:text-blue-800">Return</button>
-                        </form>
+                    <% if (order.status === 'delivered' && order.returnStatus !== 'requested' && order.returnStatus !== 'approved') { %>
+                        <!-- Trigger Modal for Return Request -->
+                        <button data-toggle="modal" data-target="#returnModal<%= order._id %>" class="text-blue-600 hover:text-blue-800">Request Return ||</button>
                     <% } %>
                     
+                    <!-- Button to View Order Details in Modal -->
+                    <button data-toggle="modal" data-target="#orderModal<%= order._id %>" class="text-blue-600 hover:text-blue-800">View Order Details</button>
+                    
+                    <!-- Modal for Order Details -->
+                    <!-- Modal Structure -->
+<div class="modal fade" id="orderModal<%= order._id %>" tabindex="-1" role="dialog" aria-labelledby="orderModalLabel<%= order._id %>" aria-hidden="true">
+    <div class="modal-dialog modal-lg custom-centered-modal" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="orderModalLabel<%= order._id %>">Order Details: <%= order.OrderId %></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Order Date:</strong> <%= order.createdAt.toLocaleDateString() %></p>
+                <p><strong>Status:</strong> <%= order.status %></p>
+                <p><strong>Payment Method:</strong> <%= order.paymentMethod %></p>
+                <p><strong>Total Amount:</strong> ₹<%= order.total.toFixed(2) %></p>
+                
+                <h5>Items:</h5>
+                <ul>
+                    <% order.items.forEach(function(item) { %>
+                        <li><%= item.productId.name %> x <%= item.quantity %> - ₹<%= item.productId.price.toFixed(2) %></li>
+                    <% }) %>
+                </ul>
+
+                <!-- Download Invoice Button -->
+                <% if (order.status === 'delivered') { %>
+                    <a href="/orders/<%= order._id %>/invoice" class="btn btn-primary" download>Download Invoice</a>
+                <% } %>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom CSS for Full-Centering Modal -->
+<style>
+    .custom-centered-modal {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh; /* Full screen height to center it */
+        margin-left: 500px;
+    }
+    
+    .custom-centered-modal .modal-content {
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        width: 100%; /* Adjust width as per your need */
+        max-width: 600px; /* Limits the modal width */
+    }
+</style>
+
+                    
+                    
+                    <!-- Modal for return reason -->
+                    <div class="modal fade" id="returnModal<%= order._id %>" tabindex="-1" aria-labelledby="returnModalLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="returnModalLabel">Request a Return</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <form action="/orders/return/<%= order._id %>" method="POST">
+                                        <label for="reason">Reason for return:</label>
+                                        <select name="reason" id="reason" class="form-control">
+                                            <option value="Damaged">Damaged</option>
+                                            <option value="Not as described">Not as described</option>
+                                            <option value="Wrong item received">Wrong item received</option>
+                                        </select>
+                                        <div class="mt-3">
+                                            <button type="submit" class="btn btn-warning">Submit Return Request</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </li>
             <% }) %>
         </ul>
@@ -100,5 +308,26 @@
         <p>No orders found.</p>
     <% } %>
 </div>
+<div class="pagination mt-6 flex justify-center items-center space-x-2">
+    <% if (currentPage > 1) { %>
+        <a href="<%= currentUrl %>?page=<%= currentPage - 1 %>" class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">
+            Previous
+        </a>
+    <% } %>
 
+    <!-- Page Numbers -->
+    <% for (let i = 1; i <= totalPages; i++) { %>
+        <a href="<%= currentUrl %>?page=<%= i %>" 
+           class="px-4 py-2 rounded-md <%= i === currentPage ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300' %>">
+            <%= i %>
+        </a>
+    <% } %>
+
+    <% if (currentPage < totalPages) { %>
+        <a href="<%= currentUrl %>?page=<%= currentPage + 1 %>" class="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">
+            Next
+        </a>
+    <% } %>
+</div>
 <%- include("partials/profileFooter.ejs") %>
+

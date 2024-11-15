@@ -208,7 +208,7 @@
     <div class="cards-container">
         <div class="card purple-card">
             <div class="card-title">Main Wallet</div>
-            <div class="card-amount"><%= wallet ? wallet.balance.toFixed(2) : '0.00' %></div>
+            <div class="card-amount">₹<%= wallet ? wallet.balance.toFixed(2) : '0.00' %></div>
             <div class="card-number">444 221 224 ***</div>
         </div>
        
@@ -226,7 +226,6 @@
         </div>
     </div>
 
-    <button class="add-wallet-btn">+ Add Wallet</button>
 
     <div class="wallet-activity">
         <div class="activity-header">
@@ -303,7 +302,7 @@
                                 <div class="transaction-note">Note: <%= txn.message %></div>
                             <% } %>
                         </div>
-                        <div class="transaction-amount"><%= txn.transactionType === 'credit' ? '+' : '-' %>$<%= Math.abs(txn.amount).toFixed(2) %></div>
+                        <div class="transaction-amount"><%= txn.transactionType === 'credit' ? '+' : '-' %>₹<%= Math.abs(txn.amount).toFixed(2) %></div>
                         
                         <div class="transaction-status <%= txn.transactionType === 'credit' ? 'status-completed' : 'status-pending' %>">
                             <%= txn.transactionType === 'credit' ? 'Completed' : 'Pending' %>

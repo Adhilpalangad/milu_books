@@ -96,13 +96,12 @@
 			</a>
 
 			<a href="/products" class="stext-109 cl8 hov-cl1 trans-04">
-				New Release
+					Books
 				<i class="fa fa-angle-right m-l-9 m-r-10" aria-hidden="true"></i>
 			</a>
 
 			<span class="stext-109 cl4">
-				Lightweight Jacket
-			</span>
+				<%= product.title %>			</span>
 		</div>
 	</div>
 		
@@ -276,14 +275,14 @@ p {
 						<span class="mtext-106 cl2" style="font-size: x-large;">
 							<% if (product.hasDiscount) { %>
 								<span style="text-decoration: line-through; color: red;">
-									$<%= product.price.toFixed(2) %>
+									₹<%= product.price.toFixed(2) %>
 								</span>
 								<span style="color: green; font-weight: bold;">
-									$<%= product.discountedPrice.toFixed(2) %>
+									₹<%= product.discountedPrice.toFixed(2) %>
 								</span>
 								<!-- Display discount percentage -->
 							<% } else { %>
-								$<%= product.price.toFixed(2) %> <!-- Display product price -->
+								₹<%= product.price.toFixed(2) %> <!-- Display product price -->
 							<% } %>
 						</span>
 					
@@ -335,7 +334,7 @@ p {
 						</div>
 					
 						<!-- Add to Cart Form -->
-						<form action="/cart/add" method="POST" id="add-to-cart-form-<%= product._id %>" class="add-to-cart-form">
+						<form action="/cart/addProducts" method="POST" id="add-to-cart-form-<%= product._id %>" class="add-to-cart-form">
 							<input type="hidden" name="productId" value="<%= product._id %>">
 							<% if (product.stock > 0) { %>
 								<button type="submit" class="btn-add-to-cart bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition duration-300 ease-in-out">
@@ -349,24 +348,9 @@ p {
 						</form>
 						
 						<!-- Additional Elements -->
-						<div class="review-row">
-							<p class="bold" style="font-size: 20px; margin-top: 4px;"><b>4.4</b></p>
-							<div class="star-rating">
-								<i class="far fa-star" data-value="1"></i>
-								<i class="far fa-star" data-value="2"></i>
-								<i class="far fa-star" data-value="3"></i>
-								<i class="far fa-star" data-value="4"></i>
-								<i class="far fa-star" data-value="5"></i>
-							</div>
-							<p>(Reviews 4)</p>
-						</div>
+						
 					
-						<div class="pincode-box">
-							<label for="pincode"></label>
-							<input type="number" id="pincode" name="pincode" placeholder="Enter Coupon">
-							<button type="button">Check</button>
-						</div>
-						<p style="color: #971a1a; margin-top: 10px;">Please enter Coupon to know your Discount.</p>
+						
 					</div>
 					
 				</div>
@@ -406,16 +390,11 @@ p {
 			
 								<!-- Display the product price -->
 								<span class="stext-105 cl3">
-									$<%= item.price %>
+									₹<%= item.price %>
 								</span>
 							</div>
 			
-							<div class="block2-txt-child2 flex-r p-t-3">
-								<a href="#" class="btn-addwish-b2 dis-block pos-relative js-addwish-b2">
-									<img class="icon-heart1 dis-block trans-04" src="images/icons/icon-heart-01.png" alt="ICON">
-									<img class="icon-heart2 dis-block trans-04 ab-t-l" src="images/icons/icon-heart-02.png" alt="ICON">
-								</a>
-							</div>
+							
 						</div>
 					</div>
 				</div>

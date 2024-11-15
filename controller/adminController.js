@@ -10,7 +10,7 @@ const Category = require('../models/categoryModel');
 const Order = require('../models/orderModel')
 const Coupon = require('../models/couponModel');
 const Offer = require('../models/offerModel')
-const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+const  PDFDocument  = require('pdfkit');
 const Wallet = require('../models/walletModel')
 //login page
 
@@ -641,7 +641,6 @@ const updateCoupon = async (req, res) => {
 
     
     try {
-        // Check if a coupon with the same code already exists (excluding the current coupon)
         const existingCoupon = await Coupon.findOne({ code, _id: { $ne: couponId } });
         if (existingCoupon) {
             return res.redirect(`/admin/editCoupon/${couponId}?error=Coupon+code+already+exists`);
@@ -676,15 +675,13 @@ const getOfferManagementPage = async (req, res) => {
         const offers = await Offer.find()
     .populate({
         path: 'applicableProducts',
-        select: 'title'  // Only get the title field
+        select: 'title'  
     })
     .populate({
         path: 'applicableCategories',
         select: 'name'  // Only get the name field
     });
- // Use lean for better performance
 
-        // Render the offer management view and pass the offers to the template
         res.render('admin/offer', { offers });
     } catch (error) {
         console.error(error);
@@ -734,22 +731,18 @@ const createOffer = async (req, res) => {
             return res.redirect('/admin/getCreateOffer?error=Valid+From+date+must+be+earlier+than+Valid+Until+date.');
         }
 
-        // Check if an offer with the same title already exists
         const existingOffer = await Offer.findOne({ title });
         if (existingOffer) {
             return res.redirect('/admin/getCreateOffer?error=An+offer+with+this+title+already+exists.');
         }
 
-        // Parse the applicableProducts and applicableCategories arrays if they exist
         const selectedProducts = Array.isArray(applicableProducts) ? applicableProducts : [applicableProducts].filter(Boolean);
         const selectedCategories = Array.isArray(applicableCategories) ? applicableCategories : [applicableCategories].filter(Boolean);
 
-        // Ensure at least one product or category is selected
         if (selectedProducts.length === 0 && selectedCategories.length === 0) {
             return res.redirect('/admin/getCreateOffer?error=At+least+one+product+or+category+must+be+selected.');
         }
 
-        // Create a new offer instance
         const newOffer = new Offer({
             title,
             discount,
@@ -861,7 +854,7 @@ const renderEditOfferPage = async (req, res) => {
 const getDeliveredSalesReport = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1; // Default to the first page
-        const limit = 10; // Orders per page
+        const limit = 5; // Orders per page
         const skip = (page - 1) * limit;
 
         // Fetch the total count of delivered orders for pagination
@@ -886,373 +879,434 @@ const getDeliveredSalesReport = async (req, res) => {
     }
 };
 
+const approveReturnRequest = async (req, res) => {
+    const { orderId } = req.params;
+
+    try {
+        const order = await Order.findById(orderId).populate('items.productId');
+        if (!order) return res.status(404).send('Order not found');
+
+        if (order.returnStatus !== 'requested') return res.status(400).send('Return request is not pending');
+
+        // Update return status to approved and set returned date
+        order.returnStatus = 'approved';
+        order.returnedAt = new Date();
+        order.status = 'returned';
+        await order.save();
+
+        // If the reason is 'Product Damage', increase stock
+        if (order.returnReason === 'Damaged') {
+            // If the product is damaged, don't update the stock
+            console.log("Product is damaged, not increasing stock.");
+        } else {
+            // Otherwise, for all other return reasons, increase the stock
+            for (const item of order.items) {
+                const productId = item.productId; // This could be populated or just the ObjectId
+        
+                // Ensure productId is an ObjectId, if populated access _id directly
+                const productIdToUpdate = productId._id ? productId._id : productId;
+        
+                // Update the stock by incrementing the quantity of returned items
+                await Book.findByIdAndUpdate(productIdToUpdate, { $inc: { stock: item.quantity } });
+            }
+        }
+        
+
+        // Handle wallet credit for paid orders
+      
+            let wallet = await Wallet.findOne({ userId: order.userId });
+            if (!wallet) wallet = await Wallet.create({ userId: order.userId });
+            wallet.balance += order.total;
+            wallet.transactions.push({
+                amount: order.total,
+                transactionType: 'credit',
+                orderId: order._id,
+                message: `${order.total} credited for returned order`
+            });
+            await wallet.save();
+        
+
+        res.redirect('/admin/orders'); // Redirect to admin orders after approval
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Server error');
+    }
+};
+
+const rejectReturnRequest = async (req, res) => {
+    const { orderId } = req.params;
+
+    try {
+        const order = await Order.findById(orderId).populate('items.productId');
+        if (!order) return res.status(404).send('Order not found');
+
+        if (order.returnStatus !== 'requested') return res.status(400).send('Return request is not pending');
+
+        // If the return reason was 'Product Damage', revert the stock change
+        if (order.returnReason === 'Product Damage') {
+            for (const item of order.items) {
+                await Book.findByIdAndUpdate(item.productId._id, { $inc: { stock: -item.quantity } });
+            }
+        }
+
+        // Reset return status and reason
+        order.returnStatus = 'rejected'; // Or set it back to 'delivered', depending on your logic
+        order.returnReason = ''; // Clear the reason
+        await order.save();
+
+        // Handle reverting any wallet transactions (if any were made during approval)
+        if (order.paymentMethod !== 'cashOnDelivery') {
+            let wallet = await Wallet.findOne({ userId: order.userId });
+            if (wallet) {
+                wallet.balance -= order.total;
+                // Remove the last transaction related to this order
+                wallet.transactions = wallet.transactions.filter(
+                    (transaction) => transaction.orderId.toString() !== order._id.toString()
+                );
+                await wallet.save();
+            }
+        }
+
+        res.redirect('/admin/orders'); // Redirect to admin orders after rejection
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Server error');
+    }
+};
+
+
+const getDateQuery = (reportType, startDate, endDate) => {
+    const today = new Date();
+    let dateQuery = {};
+
+    switch (reportType) {
+        case "daily": {
+            const startOfDay = new Date(today);
+            startOfDay.setHours(0, 0, 0, 0);
+
+            const endOfDay = new Date(today);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            dateQuery = { $gte: startOfDay, $lt: endOfDay };
+            break;
+        }
+        case "weekly": {
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - 6);
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            const endOfWeek = new Date(today);
+            endOfWeek.setHours(23, 59, 59, 999);
+
+            dateQuery = { $gte: startOfWeek, $lt: endOfWeek };
+            break;
+        }
+        case "monthly": {
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            endOfMonth.setHours(23, 59, 59, 999);
+
+            dateQuery = { $gte: startOfMonth, $lt: endOfMonth };
+            break;
+        }
+        case "custom":
+            if (!startDate || !endDate) throw new Error("Start date and end date are required for custom reports.");
+            dateQuery = {
+                $gte: new Date(startDate),
+                $lt: new Date(new Date(endDate).setHours(23, 59, 59, 999)) // Include the full end day
+            };
+            break;
+        default:
+            throw new Error("Invalid report type.");
+    }
+
+    return dateQuery;
+};
+
 
 const downloadSalesReport = async (req, res) => {
     try {
-        let reportType, startDate, endDate;
+        const { reportType, startDate, endDate } = req.body;
+        const dateQuery = getDateQuery(reportType, startDate, endDate);
 
-        // Determine the report type and date range based on the request method
-        if (req.method === 'GET') {
-            const { reportType: type, startDate: start, endDate: end } = req.query;
-            reportType = type;
-            startDate = start ? new Date(start) : null; // Parse date
-            endDate = end ? new Date(end) : null; // Parse date
-        } else if (req.method === 'POST') {
-            ({ reportType, startDate, endDate } = req.body);
-            startDate = startDate ? new Date(startDate) : null; // Parse date
-            endDate = endDate ? new Date(endDate) : null; // Parse date
-        } else {
-            return res.status(405).send("Method Not Allowed");
-        }
+        // Fetch delivered orders
+        const orders = await Order.find({ status: "delivered", createdAt: dateQuery }).populate('userId');
 
-        let dateQuery = {};
-        const today = new Date();
-
-        // Set date query based on report type
-        switch (reportType) {
-            case "daily":
-                dateQuery = {
-                    $gte: new Date(today.setHours(0, 0, 0, 0)),
-                    $lt: new Date(today.setHours(23, 59, 59, 999))
-                };
-                break;
-            case "weekly":
-                dateQuery = {
-                    $gte: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7),
-                    $lt: new Date(today.setHours(23, 59, 59, 999))
-                };
-                break;
-            case "monthly":
-                dateQuery = {
-                    $gte: new Date(today.getFullYear(), today.getMonth(), 1),
-                    $lt: new Date(today.getFullYear(), today.getMonth() + 1, 0)
-                };
-                break;
-            case "custom":
-                if (!startDate || !endDate) {
-                    return res.status(400).send("Start date and end date are required for custom reports.");
-                }
-                // Ensure end date includes the full day
-                dateQuery = {
-                    $gte: startDate,
-                    $lt: new Date(endDate.setHours(23, 59, 59, 999)) // Adjust end date to include the full day
-                };
-                break;
-            default:
-                return res.status(400).send("Invalid report type.");
-        }
-
-        // Fetch delivered orders based on the date query
-        const orders = await Order.find({ status: "delivered", createdAt: dateQuery }).populate('items.productId');
-
-        // Calculate totals
-        const totalRevenue = orders.reduce((total, order) => total + order.total, 0);
+        // Calculate summary data
         const totalOrders = orders.length;
-        const totalDiscount = orders.reduce((total, order) => total + order.discount, 0);
+        const totalIncome = orders.reduce((sum, order) => sum + order.total, 0);
+        const totalDiscount = orders.reduce((sum, order) => sum + (order.discount || 0), 0);
 
+        // Initialize PDF Document
+        const doc = new PDFDocument({ margin: 50 });
 
-        // Create PDF document
-        const pdfDoc = await PDFDocument.create();
-        const page = pdfDoc.addPage([600, 800]);
+        // Set Headers and Pipe Response
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", 'attachment; filename="sales_report.pdf"');
+        doc.pipe(res);
 
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-        const headerColor = rgb(0.2, 0.2, 0.8);
-        const textColor = rgb(0, 0, 0);
+        // Color scheme
+        const colors = {
+            primary: "#ca686e",
+            headerText: "#ffffff",
+            text: "#1f2937",
+            border: "#cbd5e1",
+            alternate: "#f1f5f9"
+        };
 
-        let yPosition = 750;
+        // Header
+        doc.rect(0, 0, doc.page.width, 140).fill(colors.primary);
 
-        // Company details
-        page.drawText("MILU BOOKS", {
-            x: 50,
-            y: 780,
-            size: 22,
-            font: font,
-            color: headerColor
+        doc.fontSize(20).font("Helvetica-Bold").fillColor(colors.headerText).text("MILU BOOKS XYZ Pvt Ltd", 50, 30, {
+            width: doc.page.width - 100,
+            align: "center"
         });
 
-        // Address
-        const address = [
-            "123 Book Street",
-            "Literary District",
-            "Booktown, BT 12345"
-        ];
-
-        let addressY = 760;
-        address.forEach(line => {
-            page.drawText(line, {
-                x: 50,
-                y: addressY,
-                size: 9,
-                font: font,
-                color: textColor
-            });
-            addressY -= 15;
+        doc.fontSize(28).font("Helvetica-Bold").fillColor(colors.headerText).text("Sales Report", 50, 60, {
+            width: doc.page.width - 100,
+            align: "center"
         });
 
-        // Contact details
-        const contactDetails = [
-            "Tel: (555) 123-4567",
-            "Email: info@milubooks.com",
-            "Web: www.milubooks.com"
-        ];
-
-        let contactY = 760;
-        contactDetails.forEach(line => {
-            page.drawText(line, {
-                x: 400,
-                y: contactY,
-                size: 9,
-                font: font,
-                color: textColor
-            });
-            contactY -= 15;
-        });
-
-        // Horizontal line
-        page.drawLine({
-            start: { x: 50, y: 700 },
-            end: { x: 550, y: 700 },
-            thickness: 2,
-            color: rgb(0, 0, 0)
-        });
-
-        // Title
-        page.drawLine({
-            start: { x: 50, y: 680 },
-            end: { x: 150, y: 680 },
-            thickness: 3,
-            color: rgb(0, 0, 0)
-        });
-
-        page.drawText("Sales Report", {
-            x: 170,
-            y: 670,
-            size: 22,
-            font: font,
-            color: headerColor
-        });
-
-        page.drawLine({
-            start: { x: 450, y: 680 },
-            end: { x: 550, y: 680 },
-            thickness: 3,
-            color: rgb(0, 0, 0)
-        });
-
-        // Report info
-        yPosition = 630;
-        const reportInfo =
-            reportType === "custom"
-               ? `Report Type: ${reportType}\nDate Range: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`
-                : `Report Type: ${reportType}\nDate: ${today.toLocaleDateString()}`;
-
-        page.drawText(reportInfo, {
-            x: 50,
-            y: yPosition,
-            size: 12,
-            font: font,
-            color: textColor
-        });
-        yPosition -= 25;
-
-        // Table setup
-        const tableTop = yPosition + 20;
-        const tableLeft = 45;
-        const tableRight = 580;
-        const headerHeight = 30;
-
-        // Table header background
-        page.drawRectangle({
-            x: tableLeft,
-            y: yPosition - 5,
-            width: tableRight - tableLeft,
-            height: headerHeight,
-            color: rgb(230 / 255, 230 / 255, 230 / 255)
-        });
-
-        // Headers
-        const headers = ["Order ID", "Order Date", "Customer", "Total Price", "Discount", "Shipping"];
-        const headerWidths = [120, 110, 140, 90, 90, 90];
-        headers.forEach((header, index) => {
-            const xPosition = tableLeft + headerWidths.slice(0, index).reduce((a, b) => a + b, 0);
-            page.drawText(header, {
-                x: xPosition + 5,
-                y: yPosition,
-                size: 11,
-                font: font,
-                color: headerColor,
-                underline: true
-            });
-        });
-
-        yPosition -= headerHeight;
-
-        // Vertical lines
-        headerWidths.reduce((xPos, width) => {
-            page.drawLine({
-                start: { x: xPos + 45, y: tableTop },
-                end: { x: xPos + 45, y: yPosition - (orders.length * 18) },
-                thickness: 0.5,
-                color: rgb(200 / 255, 200 / 255, 200 / 255)
-            });
-            return xPos + width;
-        }, 0);
-
-        // Order details
-        if (orders.length === 0) {
-            page.drawText("No delivered orders found for this report.", {
-                x: 50,
-                y: yPosition,
-                size: 11,
-                font: font,
-                color: textColor
-            });
-        } else {
-            orders.forEach((order, index) => {
-                const orderDate = new Date(order.deliveredAt).toLocaleDateString();
-                const totalPriceText = `$${order.total.toFixed(2)}`;
-                const customer = order.address.fullName || "N/A";
-                const discount = order.discount;
-                const shipping = order.shipping;
-
-                const rowYPosition = yPosition - index * 18;
-                if (rowYPosition < 50) {
-                    page.addPage([600, 800]);
-                    yPosition = 750;
-                }
-
-                // Alternating row backgrounds
-                if (index % 2 === 1) {
-                    page.drawRectangle({
-                        x: tableLeft,
-                        y: rowYPosition - 2,
-                        width: tableRight - tableLeft,
-                        height: 18,
-                        color: rgb(245 / 255, 245 / 255, 245 / 255)
-                    });
-                }
-
-                // Row data
-                page.drawText(order.OrderId, {
-                    x: 50,
-                    y: rowYPosition + 2,
-                    size: 9,
-                    font: font,
-                    color: textColor
-                });
-                page.drawText(orderDate, {
-                    x: 170,
-                    y: rowYPosition + 2,
-                    size: 9,
-                    font: font,
-                    color: textColor
-                });
-                page.drawText(customer, {
-                    x: 280,
-                    y: rowYPosition + 2,
-                    size: 9,
-                    font: font,
-                    color: textColor
-                });
-                page.drawText(totalPriceText, {
-                    x: 420,
-                    y: rowYPosition + 2,
-                    size: 9,
-                    font: font,
-                    color: textColor
-                });
-                page.drawText(`$${discount.toFixed(2)}`, {
-                    x: 510,
-                    y: rowYPosition + 2,
-                    size: 9,
-                    font: font,
-                    color: textColor
-                });
-                page.drawText(`$${shipping.toFixed(2)}`, {
-                    x: 600,
-                    y: rowYPosition + 2,
-                    size: 9,
-                    font: font,
-                    color: textColor
-                });
-            });
-
-            // Horizontal lines
-            for (let i = 0; i <= orders.length; i++) {
-                const lineY = yPosition - (i * 18);
-                page.drawLine({
-                    start: { x: tableLeft, y: lineY },
-                    end: { x: tableRight, y: lineY },
-                    thickness: 0.5,
-                    color: rgb(200 / 255, 200 / 255, 200 / 255)
-                });
-            }
-        }
+        doc.fontSize(12)
+            .font("Helvetica")
+            .fillColor(colors.headerText)
+            .text(`Report Period: ${startDate} - ${endDate}`, 50, 100, { align: "center" })
+            .text(`Generated on: ${new Date().toLocaleDateString()}`, 50, 120, { align: "center" });
 
         // Summary Section
-        yPosition -= orders.length * 18 + 30;
+        doc.fillColor(colors.text).fontSize(12);
+        doc.text(`Total Orders: ${totalOrders}`, 50, 160)
+           .text(`Total Income: ${totalIncome.toFixed(2)}`, 250, 160)
+           .text(`Total Discount: ${totalDiscount.toFixed(2)}`, 420, 160);
 
-        page.drawRectangle({
-            x: 40,
-            y: yPosition - 100,
-            width: 520,
-            height: 120,
-            color: rgb(245 / 255, 245 / 255, 245 / 255)
+        // Table Headers
+        const headers = ["Order ID", "Customer Name", "Total", "Order Date", "Status"];
+        const headerWidths = [120, 160, 60, 100, 70];
+        let currentX = 50;
+        let currentY = 200;
+
+        doc.fillColor(colors.primary);
+        doc.rect(currentX, currentY, doc.page.width - 100, 20).fill();
+
+        headers.forEach((header, i) => {
+            doc.fillColor(colors.headerText)
+               .font("Helvetica-Bold")
+               .fontSize(10)
+               .text(header, currentX, currentY + 5, { width: headerWidths[i], align: "center" });
+            currentX += headerWidths[i];
         });
 
-        page.drawText("Summary", {
-            x: 50,
-            y: yPosition,
-            size: 14,
-            font: font,
-            color: headerColor
+        // Table Content
+        currentY += 20;
+
+        orders.forEach((order, index) => {
+            currentX = 50;
+            const isEvenRow = index % 2 === 0;
+            doc.fillColor(isEvenRow ? colors.alternate : "#ffffff")
+               .rect(currentX, currentY, doc.page.width - 100, 20)
+               .fill();
+
+            doc.fillColor(colors.text).fontSize(10);
+            doc.text(order.OrderId.toString(), currentX, currentY + 5, { width: 140, align: "center" });
+            currentX += 120;
+            doc.text(order.userId?.name || "N/A", currentX, currentY + 5, { width: 160, align: "center" });
+            currentX += 160;
+            doc.text(`${order.total.toFixed(2)}`, currentX, currentY + 5, { width: 60, align: "center" });
+            currentX += 60;
+            doc.text(new Date(order.createdAt).toLocaleDateString(), currentX, currentY + 5, { width: 100, align: "center" });
+            currentX += 100;
+            doc.text(order.status, currentX, currentY + 5, { width: 70, align: "center" });
+
+            currentY += 20;
         });
+        doc.moveDown(1);
+        doc.fillColor('#000000').lineWidth(0.5).moveTo(50, currentY).lineTo(555, currentY).stroke();
+        doc.moveDown(0.5);
+        // Summary Section at the End
+        currentY += 30;
+doc.fontSize(12).fillColor(colors.primary);
 
-        const summaryData = [
-            { label: "Total Revenue:", value: `$${totalRevenue.toFixed(2)}` },
-            { label: "Total Orders:", value: `${totalOrders}` },
-            { label: "Total Discount:", value: `$${totalDiscount.toFixed(2)}` }
-        ];
+doc.text(`Total Orders: ${totalOrders}`, 50, currentY);
+currentY += 20; // Move down to the next line
 
-        summaryData.forEach((item, index) => {
-            yPosition -= 18;
-            page.drawText(item.label, {
-                x: 50,
-                y: yPosition,
-                size: 10,
-                font: font,
-                color: headerColor
-            });
-            page.drawText(item.value, {
-                x: 250,
-                y: yPosition,
-                size: 10,
-                font: font,
-                color: textColor
-            });
-        });
+doc.text(`Total Income: ${totalIncome.toFixed(2)}`, 50, currentY);
+currentY += 20; // Move down to the next line
 
-        // Serialize the PDFDocument to bytes (a Uint8Array)
-        const pdfBytes = await pdfDoc.save();
+doc.text(`Total Discount: ${totalDiscount.toFixed(2)}`, 50, currentY);
 
-        // Save PDF to filesystem
-        const filePath = path.join(__dirname,'sales_report.pdf'); // Adjust the path as needed
-        fs.writeFileSync(filePath, pdfBytes);
 
-        // Send the file as a download
-        res.download(filePath,'sales_report.pdf', (err) => {
-            if (err) {
-                console.error("Error sending the PDF file:", err);
-                return res.status(500).send("Error sending the report.");
-            }
-            // Optionally delete the file after sending
-            fs.unlinkSync(filePath);
-        });
+        // End PDF Document
+        doc.end();
     } catch (error) {
-        console.error("Error generating report:", error);
-        res.status(500).send("Error generating report.");
+        console.error("Error generating PDF:", error.message);
+        res.status(500).send(`Failed to generate PDF report: ${error.message}`);
     }
 };
+
+
+// Backend: Route to serve filtered data for table display
+const filterSalesReport = async (req, res) => {
+    try {
+        const { reportType, startDate, endDate } = req.body;
+        const dateQuery = getDateQuery(reportType, startDate, endDate);
+
+        const orders = await Order.find({ status: "delivered", createdAt: dateQuery }).populate('items.productId').populate('userId'); 
+        res.json(orders); // Send data as JSON for table display
+    } catch (error) {
+        console.error('Error fetching filtered sales data:', error.message);
+        res.status(500).send('Failed to fetch filtered data.');
+    }
+};
+
+
+
+
+
+
+// Function to get the bestseller books by calculating sales count manually
+const getDashboardData = async (req, res) => {
+    try {
+        const period = req.query.period || 'monthly';
+        let dateFilter;
+
+        // Define date filter based on the selected period
+        const now = new Date();
+        switch (period) {
+            case 'daily':
+                dateFilter = { $gte: new Date(now.setDate(now.getDate() - 1)) };
+                break;
+            case 'weekly':
+                dateFilter = { $gte: new Date(now.setDate(now.getDate() - 7)) };
+                break;
+            case 'monthly':
+                dateFilter = { $gte: new Date(now.setMonth(now.getMonth() - 1)) };
+                break;
+            case 'yearly':
+                dateFilter = { $gte: new Date(now.setFullYear(now.getFullYear() - 1)) };
+                break;
+            default:
+                dateFilter = {};
+        }
+
+        const deliveredFilter = { status: 'delivered' };
+
+        const salesSummary = await Order.aggregate([
+            { $match: { createdAt: dateFilter, status: 'delivered' } },
+            {
+                $group: {
+                    _id: null,
+                    totalSalesCount: { $sum: { $size: "$items" } },
+                    totalRevenue: { $sum: "$total" },
+                    totalDiscount: { $sum: "$discount" }
+                }
+            }
+        ]);
+
+        const bestSellingProducts = await Order.aggregate([
+            { $match: { createdAt: dateFilter, status: 'delivered' } },
+            { $unwind: "$items" },
+            {
+                $group: {
+                    _id: "$items.productId", 
+                    totalSold: { $sum: "$items.quantity" }
+                }
+            },
+            { $sort: { totalSold: -1 } },
+            { $limit: 10 },
+            {
+                $lookup: {
+                    from: 'books',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'productInfo'
+                }
+            },
+            { $unwind: { path: "$productInfo", preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 1,
+                    totalSold: 1,
+                    name: { $ifNull: ["$productInfo.title", "Unknown Product"] },
+                    productId: { $toString: "$_id" }
+                }
+            }
+        ]);
+
+        const bestSellingCategories = await Order.aggregate([
+            { $match: { createdAt: dateFilter, status: 'delivered' } },
+            { $unwind: "$items" },
+            {
+                $lookup: {
+                    from: 'books',
+                    localField: 'items.productId',
+                    foreignField: '_id',
+                    as: 'productInfo'
+                }
+            },
+            { $unwind: "$productInfo" },
+            {
+                $lookup: {
+                    from: 'categories',
+                    localField: 'productInfo.categoryId',
+                    foreignField: '_id',
+                    as: 'categoryInfo'
+                }
+            },
+            { $unwind: "$categoryInfo" },
+            {
+                $group: {
+                    _id: "$categoryInfo.name",
+                    totalSold: { $sum: "$items.quantity" }
+                }
+            },
+            { $sort: { totalSold: -1 } },
+            { $limit: 10 },
+            {
+                $project: {
+                    _id: 0,
+                    categoryName: "$_id",
+                    totalSold: 1
+                }
+            }
+        ]);
+
+        const dailyRevenue = await Order.aggregate([
+            { $match: { createdAt: dateFilter, status: 'delivered' } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                    totalRevenue: { $sum: "$total" }
+                }
+            },
+            { $sort: { "_id": 1 } } // Sort by date
+        ]);
+
+        const totalUsers = await User.countDocuments();
+
+        res.json({
+            salesSummary: salesSummary[0] || { totalSalesCount: 0, totalRevenue: 0, totalDiscount: 0 },
+            bestSellingProducts,
+            bestSellingCategories,
+            totalUsers,
+            dailyRevenue
+        });
+    } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        res.status(500).json({ error: "Failed to fetch dashboard data" });
+    }
+};
+
+
+
+const renderDashboard = (req, res) => {
+    try {
+        res.render('admin/dashboard'); // This will render the 'dashboard.ejs' file inside 'views/admin'
+    } catch (error) {
+        console.error("Error rendering dashboard page:", error);
+        res.status(500).send("Failed to render dashboard page");
+    }
+};
+
 
 
 
@@ -1287,5 +1341,10 @@ module.exports = {
     toggleOfferStatus,
     renderEditOfferPage,
     getDeliveredSalesReport,
-    downloadSalesReport
+    downloadSalesReport,
+    filterSalesReport,
+    approveReturnRequest,
+    rejectReturnRequest, 
+    getDashboardData,
+    renderDashboard
 };

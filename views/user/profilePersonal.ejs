@@ -3,7 +3,16 @@
     <div id="profile" class="bg-white rounded-lg shadow-md p-6">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-semibold">Personal Details</h1>
-            <button id="edit-btn" class="text-blue-600 hover:text-blue-800">Edit</button>
+            <div class="mt-4">
+                <button 
+                    id="edit-btn" 
+                    type="button" 
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                >
+                    Edit
+                </button>
+            </div>
+            
         </div>
     
         <form id="profile-form" action="/profile/update" method="POST">
@@ -20,17 +29,21 @@
                     />
                 </div>
     
-                <div class="flex">
-                    <span class="w-1/3 text-gray-600">Phone number:</span>
-                    <span class="w-2/3" id="phone-display"><%= phone %></span>
-                    <input 
-                        type="text" 
-                        name="phone" 
-                        value="<%= phone %>" 
-                        id="phone-input" 
-                        class="hidden w-2/3 border border-gray-300 rounded-md"
-                    />
-                </div>
+                <!-- Referral Code Field (replaces phone number) -->
+<div class="flex">
+    <span class="w-1/3 text-gray-600">Referral Code:</span>
+    <span class="w-2/3" id="referral-code-display"></span>
+    <input 
+        type="text" 
+        name="referralCode" 
+        value="<%= referralCode %>" 
+        id="referral-code-input" 
+        class="hidden w-2/3 border border-gray-300 rounded-md"
+        placeholder="Enter referral code (optional)"
+    />
+</div>
+
+                
     
                 <div class="flex">
                     <span class="w-1/3 text-gray-600">Email address:</span>
@@ -77,8 +90,8 @@
     document.getElementById('name-display').classList.add('hidden');
     document.getElementById('name-input').classList.remove('hidden');
 
-    document.getElementById('phone-display').classList.add('hidden');
-    document.getElementById('phone-input').classList.remove('hidden');
+    document.getElementById('referral-code-display').classList.add('hidden');
+    document.getElementById('referral-code-input').classList.remove('hidden');
 
     document.getElementById('gender-display').classList.add('hidden');
     document.getElementById('gender-inputs').classList.remove('hidden');
@@ -91,5 +104,36 @@
 });
 
     </script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (urlParams.get('credited') === 'true') {
+            Swal.fire({
+                title: 'Congratulations!',
+                text: '50 has been credited to your wallet as a referral bonus!',
+                icon: 'success',
+                confirmButtonText: 'OK'
+            });
+        } else if (urlParams.get('invalidCode') === 'true') {
+            Swal.fire({
+                title: 'Invalid Referral Code',
+                text: 'The referral code you entered is invalid. Please try again.',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        } else if (urlParams.get('alreadyApplied') === 'true') {
+            Swal.fire({
+                title: 'Referral Code Already Applied',
+                text: 'You have already applied this referral code.',
+                icon: 'warning',
+                confirmButtonText: 'OK'
+            });
+        }
+    });
+</script>
+
     
     <%- include("partials/profileFooter.ejs") %>

@@ -21,81 +21,92 @@
         <%- include('partials/sidebar') %>
         <!-- Navbar -->
         <%- include('partials/navbar') %>
-        <div class="container-fluid page-body-wrapper">
-            <div class="main-panel">
-                <div class="content-wrapper">
-                    <div class="card">
-                        <div class="card-body">
-                            <h4 class="card-title">Orders</h4>
-                            <div class="table-responsive">
-                                <table class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Sl. No</th>
-                                            <th>Order ID</th>
-                                            <th>Customer Name</th>
-                                            <th>Product</th>
-                                            <th>Quantity</th>
-                                            <th>Status</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="order-table-body">
-                                        <% if (orders && orders.length > 0) { %>
-                                            <% orders.forEach((order, index) => { %>
-                                                <tr>
-                                                    <td><%= index + 1 + (currentPage - 1) * 5 %></td> <!-- Adjust index based on current page -->
-                                                    <td><%= order.OrderId %></td>
-                                                    <td><%= order.userId.name %></td>
-                                                    <td><%= order.items[0].productId.title %></td>
-                                                    <td><%= order.items[0].quantity %></td>
-                                                    <td>
-                                                        <div class="badge <%= order.status === 'pending' ? 'badge-warning' : order.status === 'shipped' ? 'badge-info' : order.status === 'delivered' ? 'badge-success' : 'badge-danger' %>">
-                                                            <%= order.status %>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <form action="/admin/orders/<%= order._id %>/status" method="POST" class="order-status-form">
-                                                            <input type="hidden" name="_method" value="PUT">
-                                                            <select name="status" onchange="confirmStatusChange(this)">
-                                                                <option value="pending" <%= order.status === 'pending' ? 'selected' : '' %>>Pending</option>
-                                                                <option value="shipped" <%= order.status === 'shipped' ? 'selected' : '' %>>Shipped</option>
-                                                                <option value="delivered" <%= order.status === 'delivered' ? 'selected' : '' %>>Delivered</option>
-                                                                <option value="cancelled" <%= order.status === 'canceled' ? 'selected' : '' %>>Canceled</option>
-                                                            </select>
-                                                        </form>
-                                                    </td>
-                                                </tr>
-                                            <% }) %>
-                                        <% } else { %>
-                                            <tr><td colspan="7">No orders found.</td></tr>
-                                        <% } %>
-                                    </tbody>
-                                </table>
+            <div class="container-fluid page-body-wrapper">
+                <div class="main-panel">
+                    <div class="content-wrapper">
+                        <div class="card">
+                            <div class="card-body">
+                                <h4 class="card-title">Orders</h4>
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Sl. No</th>
+                                                <th>Order ID</th>
+                                                <th>Customer Name</th>
+                                                <th>Product</th>
+                                                <th>Quantity</th>
+                                                <th>Status</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="order-table-body">
+                                            <% if (orders && orders.length > 0) { %>
+                                                <% orders.forEach((order, index) => { %>
+                                                    <tr>
+                                                        <td><%= index + 1 + (currentPage - 1) * 5 %></td>
+                                                        <td><%= order.OrderId %></td>
+                                                        <td><%= order.userId.name %></td>
+                                                        <td><%= order.items[0].productId.title %></td>
+                                                        <td><%= order.items[0].quantity %></td>
+                                                        <td>
+                                                            <div class="badge <%= order.status === 'pending' ? 'badge-warning' : order.status === 'shipped' ? 'badge-info' : order.status === 'delivered' ? 'badge-success' : order.status === 'paid' ? 'badge-success' : order.status === 'requested' ? 'badge-primary' : order.status === 'returned' ? 'badge-danger' : 'badge-danger' %>">
+                                                                <%= order.status %>
+                                                            </div>
+                                                        </td>
+                                                        <td>
+                                                            <% if (order.returnStatus === 'requested') { %>
+                                                                <form action="/admin/orders/<%= order._id %>/return/approve" method="POST" class="inline">
+                                                                    <button type="submit" class="text-green-600 hover:text-green-800">Approve</button>
+                                                                </form>
+                                                                <form action="/admin/orders/<%= order._id %>/return/reject" method="POST" class="inline">
+                                                                    <button type="submit" class="text-red-600 hover:text-red-800">Reject</button>
+                                                                </form>
+                                                                <p>Reason: <%= order.returnReason %></p> <!-- Display the reason for return -->
+                                                            <% } else { %>
+                                                                <form action="/admin/orders/<%= order._id %>/status" method="POST" class="order-status-form">
+                                                                    <input type="hidden" name="_method" value="PUT">
+                                                                    <select name="status" onchange="confirmStatusChange(this)">
+                                                                        <option value="pending" <%= order.status === 'pending' ? 'selected' : '' %>>Pending</option>
+                                                                        <option value="shipped" <%= order.status === 'shipped' ? 'selected' : '' %>>Shipped</option>
+                                                                        <option value="delivered" <%= order.status === 'delivered' ? 'selected' : '' %>>Delivered</option>
+                                                                        <option value="cancelled" <%= order.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+                                                                    </select>
+                                                                </form>
+                                                            <% } %>
+                                                        </td>
+                                                    </tr>
+                                                <% }) %>
+                                            <% } else { %>
+                                                <tr><td colspan="7">No orders found.</td></tr>
+                                            <% } %>
+                                        </tbody>
+                                        
+                                    </table>
+                                </div>
+            
+                                <!-- Pagination Controls -->
+                                <div class="pagination">
+                                    <% if (currentPage > 1) { %>
+                                        <a href="?page=<%= currentPage - 1 %>">Previous</a>
+                                    <% } %>
+            
+                                    <% for (let i = 1; i <= totalPages; i++) { %>
+                                        <a href="?page=<%= i %>" class="<%= i === currentPage ? 'active' : '' %>"><%= i %></a>
+                                    <% } %>
+            
+                                    <% if (currentPage < totalPages) { %>
+                                        <a href="?page=<%= currentPage + 1 %>">Next</a>
+                                    <% } %>
+                                </div>
+            
                             </div>
-        
-                            <!-- Pagination Controls -->
-                            <div class="pagination">
-                                <% if (currentPage > 1) { %>
-                                    <a href="?page=<%= currentPage - 1 %>">Previous</a>
-                                <% } %>
-        
-                                <% for (let i = 1; i <= totalPages; i++) { %>
-                                    <a href="?page=<%= i %>" class="<%= i === currentPage ? 'active' : '' %>"><%= i %></a>
-                                <% } %>
-        
-                                <% if (currentPage < totalPages) { %>
-                                    <a href="?page=<%= currentPage + 1 %>">Next</a>
-                                <% } %>
-                            </div>
-        
                         </div>
                     </div>
+                    <!-- Footer -->
+                    <%- include('partials/footer') %>
                 </div>
-                <!-- Footer -->
-                <%- include('partials/footer') %>
             </div>
-        </div>
         
         <style>
             .pagination {

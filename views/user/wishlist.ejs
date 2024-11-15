@@ -3,7 +3,8 @@
 
 	<!-- Cart -->
 
-
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 	<!-- breadcrumb -->
 	<div class="container" style="margin-top: 70px;">
@@ -84,10 +85,7 @@
     min-width: 180px; /* Minimum width for single card */
 }
 
-
-
-
-    </style>
+</style>
     <div class="container">
         <div class="row">
             <div class="wishlist-grid">
@@ -105,19 +103,18 @@
                                     <a href="/product-detail/<%= product._id %>"><%= product.title %></a>
                                 </h3>
                                 <p class="card-price">
-                                    $<%= product.price.toFixed(2) %>
+                                    ₹<%= product.price.toFixed(2) %>
                                 </p>
                                 <div class="card-actions d-flex justify-content-center">
-                                    <form action="/addtocart/wishlist" method="post">
-                                        <button class="btn btn-primary move-to-cart" name="productId" value="<%= product._id %>">
-                                            Move to Cart
-                                        </button>
-                                    </form>
-                                    <form action="/wishlist/remove/<%= product._id %>" method="post">
-                                        <button class="btn btn-danger remove-from-wishlist" data-product-id="<%= product._id %>">
-                                            <i class="fas fa-heart-broken"></i> Remove
-                                        </button>
-                                    </form>
+                                    <!-- Move to Cart Button -->
+                                    <button type="button" class="btn btn-primary move-to-cart" data-product-id="<%= product._id %>">
+                                        Move to Cart
+                                    </button>
+                                
+                                    <!-- Remove from Wishlist Button -->
+                                    <button type="button" class="btn btn-danger remove-from-wishlist" data-product-id="<%= product._id %>">
+                                        <i class="fas fa-heart-broken"></i> Remove
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -146,147 +143,76 @@
     <br>
 		
 	<script>
-		
-   document.querySelectorAll('.btn-num-product-up, .btn-num-product-down').forEach(button => {
-    button.addEventListener('click', function (e) {
-        e.preventDefault();
-
-        const productId = this.getAttribute('data-product-id');
-        const action = this.getAttribute('data-action');
-
-        fetch(`/cart/update-quantity/${productId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ action })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Log for debugging
-                console.log("Response data:", data);
-
-                // Update the quantity on the page
-                const quantityInput = document.getElementById(`quantity-${productId}`);
-                if (quantityInput) {
-                    quantityInput.value = data.quantity;
-                }
-
-                // Update the total price for the current product
-                const productPriceElement = document.getElementById(`price-${productId}`);
-                const productTotalElement = document.getElementById(`total-price-${productId}`);
-                if (productPriceElement && productTotalElement) {
-                    const productPrice = parseFloat(productPriceElement.innerText.replace('$', ''));
-                    const productTotalPrice = data.quantity * productPrice;
-                    productTotalElement.innerText = `$${productTotalPrice.toFixed(2)}`;
-                }
-
-                // Call the function to update the overall cart total
-                updateCartTotal();
-
-                // Remove item if quantity is zero
-                if (data.quantity === 0) {
-                    const productRow = document.getElementById(`product-row-${productId}`);
-                    if (productRow) {
-                        productRow.remove();
+        // SweetAlert for "Move to Cart" action with AJAX
+        document.querySelectorAll('.move-to-cart').forEach(button => {
+            button.addEventListener('click', function () {
+                const productId = this.getAttribute('data-product-id');
+    
+                Swal.fire({
+                    title: "Move to Cart",
+                    text: "Are you sure you want to move this item to your cart?",
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonColor: "#3085d6",
+                    cancelButtonColor: "#d33",
+                    confirmButtonText: "Yes, move it!"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch('/addtocart/wishlist', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ productId: productId })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire("Moved!", "The item has been moved to your cart.", "success");
+                            } else {
+                                Swal.fire("Error", "Unable to move item to cart.", "error");
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
                     }
-                }
-
-                // Disable the increase button if quantity reaches 5
-                const increaseButton = document.querySelector(`button[data-product-id="${productId}"][data-action="increase"]`);
-                if (increaseButton) {
-                    increaseButton.disabled = data.quantity >= 5;
-                }
-            } else {
-                alert(data.message);
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    });
-});
-
-// Function to update the overall cart total dynamically
-// Function to update the overall cart total dynamically
-// Function to update the overall cart total dynamically
-function updateCartTotal() {
-    let total = 0;
-    let subtotalDetails = '';
-
-    // Loop through all the items and sum their total prices
-    document.querySelectorAll('.table_row').forEach(row => {
-        const productTotalElement = row.querySelector('.column-5');
-        const productNameElement = row.querySelector('.column-2');
-        const productQuantityElement = row.querySelector('.num-product');
-
-        if (productTotalElement && productNameElement && productQuantityElement) {
-            const productTotal = parseFloat(productTotalElement.innerText.replace('$', ''));
-            const productName = productNameElement.innerText;
-            const productQuantity = parseInt(productQuantityElement.value);
-            total += productTotal;
-
-            // Update subtotal details for display
-            subtotalDetails += `<li><span>${productName} (x${productQuantity}): $${productTotal.toFixed(2)}</span></li>`;
-        }
-    });
-
-    // Update the subtotal in the cart total element
-    const subtotalElement = document.getElementById('subtotal');
-    if (subtotalElement) {
-        subtotalElement.innerText = `$${total.toFixed(2)}`;
-    }
-
-    // Update the subtotal details list
-    const subtotalDetailsElement = document.getElementById('subtotal-details');
-    if (subtotalDetailsElement) {
-        subtotalDetailsElement.innerHTML = subtotalDetails; // Update with new details
-    }
-
-    // Calculate shipping
-    const shippingCharge = total > 25 ? 0 : 5;
-    const cartTotalElement = document.getElementById('cart-total');
-    if (cartTotalElement) {
-        cartTotalElement.innerText = `$${(total + shippingCharge).toFixed(2)}`;
-    }
-
-    // Update shipping information
-    const shippingInfoElement = document.getElementById('shipping');
-    if (shippingInfoElement) {
-        shippingInfoElement.innerText = total > 25 ? 'Free Shipping!' : 'Standard $5 shipping charge will apply.';
-    }
-}
-
-// Add this call to update totals after each quantity change
-document.querySelectorAll('.btn-num-product-up, .btn-num-product-down').forEach(button => {
-    button.addEventListener('click', function() {
-        const productId = this.getAttribute('data-product-id');
-        
-        // Fetch updated quantity and other operations...
-        fetch(`/cart/update`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ productId })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Call function to update the product total
-                updateCartTotal();
-            } else {
-                alert(data.message);
-            }
-        })
-        .catch(error => console.error('Error:', error));
-    });
-});
-
-
-
+                });
+            });
+        });
+    
+        // SweetAlert for "Remove from Wishlist" action with AJAX
+        document.querySelectorAll('.remove-from-wishlist').forEach(button => {
+            button.addEventListener('click', function () {
+                const productId = this.getAttribute('data-product-id');
+                const itemElement = this.closest('.card-actions'); // Select the parent container to remove
+    
+                Swal.fire({
+                    title: "Remove from Wishlist",
+                    text: "Are you sure you want to remove this item from your wishlist?",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#3085d6",
+                    cancelButtonColor: "#d33",
+                    confirmButtonText: "Yes, remove it!"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch(`/wishlist/remove/${productId}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire("Removed!", "The item has been removed from your wishlist.", "success");
+                                // Remove the item from the DOM
+                                itemElement.remove();
+                            } else {
+                                Swal.fire("Error", "Unable to remove item from wishlist.", "error");
+                            }
+                        })
+                        .catch(error => console.error('Error:', error));
+                    }
+                });
+            });
+        });
     </script>
-    
-    
 		
 
 	<!-- Footer -->

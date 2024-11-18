@@ -303,15 +303,29 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
                     <form id="checkoutForm" >
                         <div class="form-group">
                             <label for="addressSelect">Saved Addresses</label>
-                            <select id="addressSelect" class="form-control" onchange="selectAddressFromDropdown()" required>
-                                <option value="">-- Select Address --</option>
-                                <% addresses.forEach(address => { %>
-                                    <option value="<%= address._id %>" data-fullname="<%= address.fullName %>" data-street="<%= address.street %>" data-city="<%= address.city %>" data-state="<%= address.state %>" data-country="<%= address.country %>" data-postalcode="<%= address.postalCode %>">
-                                        <%= address.fullName %>: <%= address.street %>, <%= address.city %>, <%= address.state %>, <%= address.country %>, <%= address.postalCode %>
-                                    </option>
-                                <% }) %>
-                            </select>
+                            <% if (addresses.length > 0) { %>
+                                <select id="addressSelect" class="form-control" onchange="selectAddressFromDropdown()" required>
+                                    <option value="">-- Select Address --</option>
+                                    <% addresses.forEach(address => { %>
+                                        <option value="<%= address._id %>" 
+                                                data-fullname="<%= address.fullName %>" 
+                                                data-street="<%= address.street %>" 
+                                                data-city="<%= address.city %>" 
+                                                data-state="<%= address.state %>" 
+                                                data-country="<%= address.country %>" 
+                                                data-postalcode="<%= address.postalCode %>">
+                                            <%= address.fullName %>: <%= address.street %>, <%= address.city %>, <%= address.state %>, <%= address.country %>, <%= address.postalCode %>
+                                        </option>
+                                    <% }) %>
+                                </select>
+                            <% } else { %>
+                                <p class="text-danger">No saved addresses found. Please add a new address.</p>
+                                <button type="button" class="btn btn-primary" onclick="window.location.href='/profile/addresses'">
+                                    Add Address
+                                </button>
+                            <% } %>
                         </div>
+                        
                 
                         <!-- Hidden Inputs for Address Details -->
                         <input type="hidden" id="selectedAddress" name="selectedAddress" required>
@@ -322,7 +336,6 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
                         <input type="hidden" id="country" name="country" required>
                         <input type="hidden" id="postalCode" name="postalCode" required>
                 
-                        <button type="button" class="btn btn-primary mt-3" onclick="showAddAddressForm()">Add New Address</button>
                 
                         <h4 class="mt-4">Payment Method</h4>
 <div class="form-group">
@@ -482,33 +495,7 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
     }
 </script>
                 
-    <div id="newAddressForm" style="display: none;">
-        <h4 class="mt-4">New Address</h4>
-        <div class="form-group">
-            <label for="newFullName">Full Name</label>
-            <input type="text" id="newFullName" name="newFullName" placeholder="Full Name" class="form-control" required />
-        </div>
-        <div class="form-group">
-            <label for="newStreet">Street</label>
-            <input type="text" id="newStreet" name="newStreet" placeholder="Street" class="form-control" required />
-        </div>
-        <div class="form-group">
-            <label for="newCity">City</label>
-            <input type="text" id="newCity" name="newCity" placeholder="City" class="form-control" required />
-        </div>
-        <div class="form-group">
-            <label for="newState">State</label>
-            <input type="text" id="newState" name="newState" placeholder="State" class="form-control" required />
-        </div>
-        <div class="form-group">
-            <label for="newCountry">Country</label>
-            <input type="text" id="newCountry" name="newCountry" placeholder="Country" class="form-control" required />
-        </div>
-        <div class="form-group">
-            <label for="newPostalCode">Postal Code</label>
-            <input type="text" id="newPostalCode" name="newPostalCode" placeholder="Postal Code" class="form-control" required />
-        </div>
-    </div>
+    
             </div>
         </div>
     </div>

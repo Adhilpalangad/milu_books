@@ -60,7 +60,27 @@ app.set("view engine", "ejs");
 app.use('/', userRoute);
 app.use('/admin', adminRoute);
 
-
+// Catch-all route for undefined user routes
+app.use('/', (req, res, next) => {
+    if (!req.route) {
+      return res.status(404).render('404', { title: 'Page Not Found' });
+    }
+    next();
+  });
+  
+  // Catch-all route for undefined admin routes
+  app.use('/admin', (req, res, next) => {
+    if (!req.route) {
+      return res.status(404).render('admin/404', { title: 'Admin Page Not Found' });
+    }
+    next();
+  });
+  
+  // General 404 fallback for other unexpected routes
+  app.use((req, res) => {
+    res.status(404).render('404', { title: 'Page Not Found' });
+  });
+  
 
 // Start the server
 app.listen(port, () => console.log(`App listening on port ${port}!`));

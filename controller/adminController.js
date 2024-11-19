@@ -527,16 +527,21 @@ const createCoupon = async (req, res) => {
 
     // Server-side validation
     if (!code || !discount || !minOrderValue || !validFrom || !validUntil) {
-        return res.redirect('/admin/getCreateCoupon?error=Please+fill+in+all+fields');
+        return res.redirect(`/admin/getCreateCoupon?error=Please+fill+in+all+fields&code=${code || ''}&discount=${discount || ''}&minOrderValue=${minOrderValue || ''}&validFrom=${validFrom || ''}&validUntil=${validUntil || ''}`);
     }
-
+    
     if (discount <= 0 || discount > 100) {
-        return res.redirect('/admin/getCreateCoupon?error=Discount+should+be+between+1+and+100');
+        return res.redirect(`/admin/getCreateCoupon?error=Discount+should+be+between+1+and+100&code=${code}&discount=${discount}&minOrderValue=${minOrderValue}&validFrom=${validFrom}&validUntil=${validUntil}`);
     }
-
+    
     if (minOrderValue <= 0) {
-        return res.redirect('/admin/getCreateCoupon?error=Minimum+order+value+should+be+greater+than+0');
+        return res.redirect(`/admin/getCreateCoupon?error=Minimum+order+value+should+be+greater+than+0&code=${code}&discount=${discount}&minOrderValue=${minOrderValue}&validFrom=${validFrom}&validUntil=${validUntil}`);
     }
+    
+    if (validFrom > validUntil) {
+        return res.redirect(`/admin/getCreateCoupon?error=Valid+From+is+not+greater+than+Valid+Until&code=${code}&discount=${discount}&minOrderValue=${minOrderValue}&validFrom=${validFrom}&validUntil=${validUntil}`);
+    }
+    
 
     try {
         // Check if a coupon with the same code already exists

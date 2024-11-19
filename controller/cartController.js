@@ -46,6 +46,13 @@ const addToCart = async (req, res) => {
             });
         }
 
+        if (requestedQuantity > 5) {
+            return res.status(400).json({
+                success: false,
+                message: 'Maximum quantity is 5'
+            })
+        }
+
         if (existingItemIndex >= 0) {
             if (currentQuantityInCart < product.stock) {
                 cart.items[existingItemIndex].quantity += 1;

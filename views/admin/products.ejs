@@ -533,15 +533,16 @@ Edit
                         
                                     const existingImagesContainer = document.getElementById('existingImages');
 existingImagesContainer.innerHTML = '';
-existingImagesContainer.classList.add('d-flex', 'flex-wrap', 'gap-3'); // Add flex properties for horizontal alignment
+existingImagesContainer.classList.add('d-flex', 'flex-column', 'gap-3'); // Change to flex-column for vertical alignment
 
 bookImages.forEach((image, index) => {
     const imageElement = `
-        <div style="flex: 0 0 auto; width: 150px;"> <!-- Set width to control size -->
+        <div style="width: 100%; max-width: 150px;"> <!-- Control width for consistent sizing -->
             <img src="/${image}" alt="Book Image ${index + 1}" style="width: 100%; height: auto;">
         </div>`;
     existingImagesContainer.innerHTML += imageElement;
 });
+
 
                                 });
                         
@@ -568,18 +569,27 @@ bookImages.forEach((image, index) => {
                         
                                 // Function to preview single image
                                 function previewImage(input) {
-                                    if (input.files && input.files[0]) {
-                                        let reader = new FileReader();
-                                        reader.onload = function(e) {
-                                            let img = document.createElement('img');
-                                            img.src = e.target.result;
-                                            img.style.width = '100%';
-                                            img.style.height = 'auto';
-                                            document.getElementById('imagePreview').appendChild(img);
-                                        }
-                                        reader.readAsDataURL(input.files[0]);
-                                    }
-                                }
+    if (input.files && input.files[0]) {
+        let reader = new FileReader();
+        reader.onload = function (e) {
+            // Clear previous images
+            const previewContainer = document.getElementById('imagePreview');
+            previewContainer.innerHTML = '';
+
+            let img = document.createElement('img');
+            img.src = e.target.result;
+            img.style.width = '150px'; // Fixed width
+            img.style.height = '150px'; // Fixed height
+            img.style.objectFit = 'cover'; // Ensures aspect ratio is preserved
+            img.style.border = '1px solid #ddd'; // Optional: Add a border for styling
+            img.style.borderRadius = '5px'; // Optional: Add rounded corners
+
+            previewContainer.appendChild(img);
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
                         
                                 // Event listener for single image input
                                 document.getElementById('selImg').addEventListener('change', function() {

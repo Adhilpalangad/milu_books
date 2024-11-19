@@ -440,6 +440,15 @@ const orderPlaced = async (req, res) => {
     }
 }
 
+const paymentFailed = async (req, res) => {
+    try {
+    res.render('user/paymentFailed');
+    } catch (er)
+    {
+        console.log('error',er);   
+    }
+}
+
 
 const generateInvoicePDF = async (
     order,
@@ -639,5 +648,6 @@ module.exports = {
     returnOrderRequest,
     getInvoice,
     updateOrderStatus,
-    retryPayment
+    retryPayment,
+    paymentFailed
 };

@@ -388,111 +388,144 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
                 
                 <script>
                     document.querySelector("#checkoutForm").addEventListener("submit", handlePayment);
-                
-                    async function handlePayment(e) {
-                        e.preventDefault();
-                        
-                        // Collect form data as a FormData object
-                        let formData = new FormData(document.querySelector("#checkoutForm"));
-                        
-                        // Convert FormData to a plain object and add paymentMethod
-                        let formDataObject = Object.fromEntries(formData.entries());
-                        const selectedPaymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
-                        formDataObject.paymentMethod = selectedPaymentMethod;
-                        
-                        if (selectedPaymentMethod === 'razorpay') {
-                            try {
-                                // Send form data as JSON to the server to create the order
-                                const response = await fetch('/checkout', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                    },
-                                    body: JSON.stringify(formDataObject),
-                                });
-                
-                                if (!response.ok) {
-                                    const errorMessage = await response.text();
-                                    throw new Error(errorMessage || 'Failed to create order');
-                                }
-                
-                                const data = await response.json();
-                
-                                // Configure Razorpay options
-                                const options = {
-                                    key: 'rzp_test_a2OtfvMdRVJCmD', // Replace with your Razorpay key
-                                    amount: data.amount, // Amount from backend in the smallest currency unit
-                                    currency: data.currency,
-                                    name: 'Your Company Name',
-                                    description: 'Order Payment',
-                                    order_id: data.orderId, // Order ID from backend
-                                    handler: async function (response) {
-                        // Verify the payment on the server
-                                        const verifyResponse = await fetch('/verify-razorpay-payment', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                        },
-                                        body: JSON.stringify({
-                                            razorpay_order_id: response.razorpay_order_id,
-                                            razorpay_payment_id: response.razorpay_payment_id,
-                                            razorpay_signature: response.razorpay_signature,
-                                        }),
-                                    });
 
-                                    const verificationData = await verifyResponse.json();
-                                    if (verifyResponse.ok) {
-                                        // Assuming verificationData contains the order ID
-                                        const orderId = verificationData.orderId; // Adjust this line based on your backend response structure
-                                        window.location.href = `/success?orderId=${orderId}`; // Include the order ID in the redirect URL
-                                    } else {
-                                        alert('Payment verification failed. Please contact support.');
-                                        console.error('Payment verification failed:', verificationData);
-                                    }
-                                },
+async function handlePayment(e) {
+    e.preventDefault();
 
-                                theme: {
-                                    color: '#F37254', // Customize your theme color
-                                }
-                            };
-                
-                                // Open Razorpay payment modal
-                                const rzp = new Razorpay(options);
-                                rzp.on('payment.failed', function (response) {
-                                    alert('Payment failed. Please try again or use a different method.');
-                                    console.error('Payment failed:', response.error);
-                                });
-                                rzp.open();
-                            } catch (error) {
-                                console.error('Error during Razorpay checkout:', error);
-                                alert('An error occurred while processing your payment. Please try again.');
-                            }
-                        } else {
-                            try {
-                const response = await fetch('/checkout', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(formDataObject),
-                });
+    // Collect form data as a FormData object
+    let formData = new FormData(document.querySelector("#checkoutForm"));
 
-                if (!response.ok) {
-                    const errorMessage = await response.text();
-                    throw new Error(errorMessage || 'Failed to process non-Razorpay payment');
-                }
+    // Convert FormData to a plain object and add paymentMethod
+    let formDataObject = Object.fromEntries(formData.entries());
+    const selectedPaymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+    formDataObject.paymentMethod = selectedPaymentMethod;
 
-                const data = await response.json(); // Assuming the backend sends back the order ID in the response
-                const orderId = data.orderId; // Adjust this line based on your backend response structure
+    if (selectedPaymentMethod === 'razorpay') {
+        try {
+            // Send form data as JSON to the server to create the order
+            const response = await fetch('/checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formDataObject),
+            });
 
-                // Redirect to success page with order ID
-                window.location.href = `/success?orderId=${orderId}`;
-            } catch (error) {
-                console.error('Error during non-Razorpay payment processing:', error);
-                alert('An error occurred while processing your payment. Please try again.');
+            if (!response.ok) {
+                const errorMessage = await response.text();
+                throw new Error(errorMessage || 'Failed to create order');
             }
+
+            const data = await response.json();
+
+            // Configure Razorpay options
+            const options = {
+                key: 'rzp_test_a2OtfvMdRVJCmD', // Replace with your Razorpay key
+                amount: data.amount, // Amount from backend in the smallest currency unit
+                currency: data.currency,
+                name: 'Your Company Name',
+                description: 'Order Payment',
+                order_id: data.orderId, // Order ID from backend
+                handler: async function (response) {
+                    try {
+                        // Verify the payment on the server
+                        const verifyResponse = await fetch('/verify-razorpay-payment', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature,
+                            }),
+                        });
+
+                        const verificationData = await verifyResponse.json();
+                        if (verifyResponse.ok) {
+                            const orderId = verificationData.orderId; // Adjust this line based on your backend response structure
+                            window.location.href = `/success?orderId=${orderId}`; // Include the order ID in the redirect URL
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Payment Verification Failed',
+                                text: 'Please contact support for assistance.',
+                            });
+                            console.error('Payment verification failed:', verificationData);
+                            window.location.href = '/failed';
+                        }
+                    } catch (error) {
+                        console.error('Error during payment verification:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'An error occurred while verifying your payment.',
+                        });
+                        window.location.href = '/failed';
+                    }
+                },
+                theme: {
+                    color: '#F37254', // Customize your theme color
+                }
+            };
+
+            // Open Razorpay payment modal
+            const rzp = new Razorpay(options);
+
+            rzp.on('payment.failed', function (response) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Payment Failed',
+                    text: 'Please try again or use a different method.',
+                });
+                console.error('Payment failed:', response.error);
+                window.location.href = '/failed';
+            });
+
+            rzp.open();
+
+        } catch (error) {
+            console.error('Error during Razorpay checkout:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An error occurred while processing your payment. Please try again.',
+            });
+            window.location.href = '/failed';
+        }
+    } else {
+        // Handle non-Razorpay payment methods
+        try {
+            const response = await fetch('/checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formDataObject),
+            });
+
+            if (!response.ok) {
+                const errorMessage = await response.text();
+                throw new Error(errorMessage || 'Failed to process non-Razorpay payment');
+            }
+
+            const data = await response.json(); // Assuming the backend sends back the order ID in the response
+            const orderId = data.orderId; // Adjust this line based on your backend response structure
+
+            // Redirect to success page with order ID
+            window.location.href = `/success?orderId=${orderId}`;
+        } catch (error) {
+            console.error('Error during non-Razorpay payment processing:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'An error occurred while processing your payment. Please try again.',
+            });
+            window.location.href = '/failed';
         }
     }
+}
+
 </script>
                 
     

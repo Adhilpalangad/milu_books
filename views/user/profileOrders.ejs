@@ -127,64 +127,92 @@
 
                 <script>
                     document.addEventListener("DOMContentLoaded", () => {
-                        document.querySelectorAll(".retry-payment-btn").forEach(button => {
-                            button.addEventListener("click", async function () {
-                                const orderId = this.getAttribute("data-order-id");
-                
-                                try {
-                                    // Fetch order details from server to initiate Razorpay retry
-                                    const response = await fetch(`/order-details/${orderId}`);
-                                    if (!response.ok) {
-                                        throw new Error('Failed to fetch order details');
-                                    }
-                
-                                    const data = await response.json();
-                
-                                    // Configure Razorpay options for retry payment
-                                    const options = {
-                                        key: 'rzp_test_a2OtfvMdRVJCmD', // Replace with your Razorpay key
-                                        amount: data.amount, // Amount in smallest currency unit
-                                        currency: data.currency,
-                                        name: 'Your Company Name',
-                                        description: 'Retry Order Payment',
-                                        order_id: data.orderId, // Use existing Razorpay order ID
-                                        handler: async function (response) {
-                                            // Verify the payment on the server
-                                            const verifyResponse = await fetch('/verify-razorpay-payment', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                    razorpay_order_id: response.razorpay_order_id,
-                                                    razorpay_payment_id: response.razorpay_payment_id,
-                                                    razorpay_signature: response.razorpay_signature,
-                                                }),
-                                            });
-                
-                                            const verificationData = await verifyResponse.json();
-                                            if (verifyResponse.ok) {
-                                                window.location.href = `/success?orderId=${data.orderId}`;
-                                            } else {
-                                                alert('Payment verification failed. Please try again.');
-                                                console.error('Payment verification failed:', verificationData);
-                                            }
-                                        },
-                                        theme: { color: '#F37254' },
-                                    };
-                
-                                    // Open Razorpay payment modal for retry
-                                    const rzp = new Razorpay(options);
-                                    rzp.on('payment.failed', function (response) {
-                                        alert('Payment failed. Please try again.');
-                                        console.error('Payment failed:', response.error);
-                                    });
-                                    rzp.open();
-                                } catch (error) {
-                                    console.error('Error during Razorpay retry:', error);
-                                    alert('An error occurred while processing your payment. Please try again.');
-                                }
+    document.querySelectorAll(".retry-payment-btn").forEach(button => {
+        button.addEventListener("click", async function () {
+            const orderId = this.getAttribute("data-order-id");
+
+            try {
+                // Fetch order details from server to initiate Razorpay retry
+                const response = await fetch(`/order-details/${orderId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch order details');
+                }
+
+                const data = await response.json();
+
+                // Configure Razorpay options for retry payment
+                const options = {
+                    key: 'rzp_test_a2OtfvMdRVJCmD', // Replace with your Razorpay key
+                    amount: data.amount, // Amount in smallest currency unit
+                    currency: data.currency,
+                    name: 'Your Company Name',
+                    description: 'Retry Order Payment',
+                    order_id: data.orderId, // Use existing Razorpay order ID
+                    handler: async function (response) {
+                        try {
+                            // Verify the payment on the server
+                            const verifyResponse = await fetch('/verify-razorpay-payment', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    razorpay_order_id: response.razorpay_order_id,
+                                    razorpay_payment_id: response.razorpay_payment_id,
+                                    razorpay_signature: response.razorpay_signature,
+                                }),
                             });
-                        });
+
+                            const verificationData = await verifyResponse.json();
+                            if (verifyResponse.ok) {
+                                window.location.href = `/success?orderId=${data.orderId}`;
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Payment Verification Failed',
+                                    text: 'Please try again or contact support.',
+                                });
+                                console.error('Payment verification failed:', verificationData);
+                                window.location.href = '/failed';
+                            }
+                        } catch (error) {
+                            console.error('Error during payment verification:', error);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: 'An error occurred while verifying your payment. Please try again.',
+                            });
+                            window.location.href = '/failed';
+                        }
+                    },
+                    theme: { color: '#F37254' },
+                };
+
+                // Open Razorpay payment modal for retry
+                const rzp = new Razorpay(options);
+
+                rzp.on('payment.failed', function (response) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Payment Failed',
+                        text: 'Please try again or use a different method.',
                     });
+                    console.error('Payment failed:', response.error);
+                    window.location.href = '/failed';
+                });
+
+                rzp.open();
+            } catch (error) {
+                console.error('Error during Razorpay retry:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while processing your payment. Please try again.',
+                });
+                window.location.href = '/failed';
+            }
+        });
+    });
+});
+
                 </script>
                 
 

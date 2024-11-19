@@ -498,44 +498,20 @@ const getProfile = async (req, res) => {
 
 const profileEdit = async (req, res) => {
     try {
-        const userId = req.session.user.id;
-        const { name, referralCode, gender } = req.body;
-        
-        const user = await User.findById(userId);
+        const userId = req.session.user.id; // Get the logged-in user's ID
+        const { name, gender } = req.body; // Extract name and gender from the request body
 
-        let credited = false;
-
-        // If referralCode is provided and has changed, and the wallet has not been credited
-        if (referralCode && referralCode !== user.referralCode) {
-            // Check if the referral code is unique
-            
-
-            // If the wallet hasn't been credited yet, credit it
-            const wallet = await Wallet.findOne({ userId });
-            if (wallet && wallet.transactions.every(tx => tx.message !== 'Referral Code Bonus')) {
-                wallet.balance += 50;
-                wallet.transactions.push({
-                    amount: 50,
-                    transactionType: 'credit',
-                    message: 'Referral Code Bonus',
-                });
-                await wallet.save();
-                credited = true;
-            }
-
-            user.referralCode = referralCode;
-        }
-
-        // Update the user data
+        // Update the user data in the database
         await User.findByIdAndUpdate(userId, { name, gender });
 
-        // Redirect with query params indicating whether crediting was successful
-        res.redirect(`/profile?credited=${credited}`);
+        // Redirect back to the profile page
+        res.redirect(`/profile`);
     } catch (error) {
-        console.log('Error updating profile:', error);
+        console.error('Error updating profile:', error);
         res.status(500).send('Error updating profile');
     }
 };
+
 
 
 
@@ -813,11 +789,7 @@ const getWallet = async (req, res) => {
         console.log(req.session);
         
         const userId = req.session.user.id;
-                console.log(userId);
-        
-        
         const wallet = await Wallet.findOne({ userId })
-        console.log('wallet details ' , wallet);
         if (!wallet) {
             return res.render('user/wallet', { wallet: null, message: 'Wallet not found' });
         }

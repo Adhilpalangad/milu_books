@@ -46,7 +46,8 @@ router.post('/cart/update-quantity/:productId', userAuth, cartController.updateC
 router.post('/verify-razorpay-payment', checkoutController.verifyPayment);
 router.post('/checkout', userAuth, checkoutController.processCheckout);
 router.get('/checkout', userAuth, cartController.getCartItems)
-router.get('/success', userAuth,checkoutController.orderPlaced)
+router.get('/success', userAuth, checkoutController.orderPlaced)
+router.get('/failed',userAuth,checkoutController.paymentFailed)
 router.get('/profile', userAuth, checkoutController.getPersonal)
 router.get('/profile/orders', userAuth, checkoutController.getOrders)
 router.get('/profile/addresses', userAuth, userController.getAddresses)

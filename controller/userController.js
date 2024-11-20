@@ -576,13 +576,11 @@ const addAddress = async (req, res) => {
     }
 };
 
-// Edit existing address
 const editAddress = async (req, res) => {
     try {
         const { addressId } = req.params;
         const { street, city, state, country, postalCode, isDefault } = req.body;
 
-        // Update address details
         const updatedAddress = await Address.findByIdAndUpdate(addressId, {
             street,
             city,
@@ -592,7 +590,6 @@ const editAddress = async (req, res) => {
             isDefault: isDefault || false
         });
 
-        // If isDefault is set, unset other default addresses
         if (isDefault) {
             await Address.updateMany({ _id: { $ne: addressId }, userId: req.session.user.id }, { isDefault: false });
         }
@@ -618,7 +615,6 @@ const deleteAddress = async (req, res) => {
 };
 
 // Send OTP for Forgot Password
-// POST method to handle the forgot password request
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
 
@@ -634,7 +630,6 @@ const forgotPassword = async (req, res) => {
     req.session.otpExpires = new Date(Date.now() + 60 * 1000); // OTP valid for 1 minute
     req.session.userEmail = email; // Store the user's email in the session
 
-    // Log the OTP to the console for debugging purposes
     console.log(`OTP sent to ${email}: ${otp}`); // This will log the OTP
 
     await sendOtpToEmail(email, otp);
@@ -654,11 +649,6 @@ const verifyForgotPasswordOtp = async (req, res) => {
     if (otp !== req.session.forgotPasswordOtp) {
         return res.render('user/verifyForgotPasswordOtp', { error: 'Invalid OTP. Please try again.', email: req.session.resetEmail });
     }
-
-
-
-
-    // Proceed to reset password
     res.render('user/resetPassword');
 };
 
@@ -736,14 +726,12 @@ const addBooksWishlist = async (req, res) => {
         const userId = req.session.user.id;
         const productId = req.params.id;
 
-        // Check if the product is already in the user's wishlist
         const existingWishlistItem = await Wishlist.findOne({ userId, productId });
 
         if (existingWishlistItem) {
             return res.json({ success: false, message: 'Product already in wishlist' });
         }
 
-        // Create a new wishlist entry
         const newWishlistItem = new Wishlist({
             userId,
             productId
@@ -751,7 +739,6 @@ const addBooksWishlist = async (req, res) => {
 
         await newWishlistItem.save();
 
-        // Return the updated wishlist status
         const wishlistStatus = await Wishlist.find({ userId }).select('_id productId').lean();
 
         res.json({
@@ -771,7 +758,6 @@ const removeWishlist = async (req, res) => {
         const productId = req.params.id;
         const userId = req.session.user.id;
         console.log('user ', userId)
-        // Use `findOneAndDelete` directly on the `Wishlist` model with both filters
         await Wishlist.findOneAndDelete({ userId, productId });
         
         res.redirect('/wishlist');
@@ -781,7 +767,6 @@ const removeWishlist = async (req, res) => {
     }
 };
 
- // Adjust the path as necessary
 
 const getWallet = async (req, res) => {
 
@@ -793,8 +778,6 @@ const getWallet = async (req, res) => {
         if (!wallet) {
             return res.render('user/wallet', { wallet: null, message: 'Wallet not found' });
         }
-
-        // Pass the wallet data to the template
         res.render('user/wallet', { wallet });
     } catch (error) {
         console.error(error);

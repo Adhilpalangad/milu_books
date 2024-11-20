@@ -1,4 +1,5 @@
 <%- include("partials/header.ejs") %>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <style>
     * {
@@ -304,7 +305,7 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
                         <div class="form-group">
                             <label for="addressSelect">Saved Addresses</label>
                             <% if (addresses.length > 0) { %>
-                                <select id="addressSelect" class="form-control" onchange="selectAddressFromDropdown()" required>
+                                <select id="addressSelect" class="form-control" onchange="selectAddressFromDropdown()" required style="height: calc(2.25rem + 8px)">
                                     <option value="">-- Select Address --</option>
                                     <% addresses.forEach(address => { %>
                                         <option value="<%= address._id %>" 
@@ -370,7 +371,6 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
 </script>
 
                         
-                        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
                             
                             

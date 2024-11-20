@@ -41,6 +41,16 @@ app.use((req, res, next) => {
 app.use(passport.initialize());
 app.use(passport.session());
 
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+      if (req.headers['x-forwarded-proto'] !== 'https') {
+          return res.redirect(`https://${req.headers.host}${req.url}`);
+      }
+      next();
+  });
+}
+
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'uploads')));
 

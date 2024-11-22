@@ -15,19 +15,12 @@ connectDb();
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true })); 
 
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({
-        message: 'Internal server error',
-        errorDetails: err.message
-    });
-});
+
 
 
 const session = require('express-session');
-
 app.use(session({
-    secret: 'yehfgeiw32', 
+    secret: process.env.SESSION_SECRET, 
     resave: false,
     saveUninitialized: true,
     cookie: { secure: false } 
@@ -85,6 +78,16 @@ app.use('/', (req, res, next) => {
     }
     next();
   });
+
+
+  app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({
+        message: 'Internal server error',
+        errorDetails: err.message
+    });
+  });
+
   
   // General 404 fallback for other unexpected routes
   app.use((req, res) => {

@@ -1,4 +1,5 @@
 <%- include("partials/profileHeader.ejs") %>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
 
 <div id="addresses" class="bg-white rounded-lg shadow-md p-6">
     <h1 class="text-2xl font-semibold mb-4">Saved Addresses</h1>
@@ -9,7 +10,16 @@
                 <div class="col-md-4 mb-4">
                     <div class="card border shadow-sm">
                         <div class="card-body">
-                            <h5 class="card-title">Address <%= index + 1 %></h5>
+                            <!-- Inside the address card -->
+                            
+  
+                            <h5 class="card-title">Address <%= index + 1 %><form action="/addresses/default/<%= address._id %>" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-link p-0" style="border: none; background: none;">
+                                  <i class="<%= address.isDefault ? 'fas fa-star text-warning' : 'far fa-star text-muted' %>" 
+                                     title="<%= address.isDefault ? 'Default Address' : 'Make Default' %>" 
+                                     style="font-size: 1.2rem; cursor: pointer;"></i>
+                                </button>
+                              </form></h5>
                             <p><strong>Street:</strong> <%= address.street %></p>
                             <p><strong>City:</strong> <%= address.city %></p>
                             <p><strong>State:</strong> <%= address.state %></p>
@@ -28,7 +38,8 @@
                             <form action="/addresses/delete/<%= address._id %>" method="POST" class="d-inline">
                                 <button type="submit" class="btn btn-danger btn-sm ml-2">Delete</button>
                             </form>
-
+                            
+                              
                             <!-- Edit mode -->
                             <form id="edit-address-form-<%= index %>" action="/addresses/edit/<%= address._id %>" method="POST" style="display: none;">
                                 <input type="text" name="street" value="<%= address.street %>" placeholder="Street" required>

@@ -87,7 +87,7 @@ const processCheckout = async (req, res) => {
             await product.save();
         }
         
-
+        
         // Apply coupon logic (if any)
         let couponDiscount = 0;
         if (req.body.couponCode) {
@@ -103,6 +103,22 @@ const processCheckout = async (req, res) => {
         const totalDiscount = offerDiscount + couponDiscount;
         const shippingCost = subtotal > 25 ? 0 : 5;
         const total = subtotal - totalDiscount + shippingCost;
+
+        if (req.body.paymentMethod === 'wallet') {
+            const wallet = await Wallet.findOne({ userId });
+            if (!wallet || wallet.balance < total) {
+                return res.status(400).send('Insufficient wallet balance');
+            }
+
+            // Deduct balance from wallet
+            wallet.balance -= total;
+            wallet.transactions.push({
+                amount: total,
+                transactionType: 'debit',
+                message: 'Order payment',
+            });
+            await wallet.save();
+        }
 
         // Fetch or save the address
         let address;
@@ -125,7 +141,7 @@ const processCheckout = async (req, res) => {
             });
             await address.save();
         }
-
+        console.log('getted paymemt from bdoy',req.body.paymentMethod)
         // Create a new order in the database first
         const newOrder = new Order({
             userId,
@@ -144,7 +160,7 @@ const processCheckout = async (req, res) => {
             shipping: shippingCost,
             total,
             status: 'pending',
-            paymentStatus: req.body.paymentMethod === 'cashOnDelivery' ? 'pending' : 'failed' // Set initial payment status
+            paymentStatus: req.body.paymentMethod === 'razorpay' ? 'failed' : 'pending' // Set initial payment status
         });
         
 
@@ -179,7 +195,22 @@ const processCheckout = async (req, res) => {
     }
 };
 
+const walletBalance = async (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const wallet = await Wallet.findOne({ userId });
 
+        if (!wallet) {
+            return res.status(404).json({ balance: 0 });
+        }
+
+        res.json({ balance: wallet.balance });
+    } catch (error) {
+        console.error('Error fetching wallet balance:', error);
+        res.status(500).send('Internal server error');
+    }
+
+}
 
 const validateCoupon = async (req, res) => { 
     const { couponCode, subtotal } = req.body;
@@ -297,58 +328,69 @@ const getOrders = async (req, res) => {
  // Adjust the path according to your structure
 
  const cancelOrder = async (req, res) => {
-    const { orderId } = req.params;
+    const { orderId, productId } = req.params;
 
     try {
-        // Find the order to get the items and userId
+        // Fetch the order and ensure it exists
         const order = await Order.findById(orderId).populate('items.productId');
 
         if (!order) {
             return res.status(404).send('Order not found');
         }
 
-        // Update the order status to cancelled
-        await Order.findByIdAndUpdate(orderId, {
-            status: 'cancelled',
-            cancelledAt: new Date()
+        // Find the specific item to cancel
+        const itemToCancel = order.items.find(item => item.productId._id.toString() === productId);
+
+        if (!itemToCancel) {
+            return res.status(404).send('Product not found in order');
+        }
+
+        // Mark the product as canceled
+        itemToCancel.isCancelled = true;
+        itemToCancel.cancelledAt = new Date(); // Mark the cancellation timestamp
+
+        // Update stock for the canceled product (if needed)
+        await Book.findByIdAndUpdate(productId, {
+            $inc: { stock: itemToCancel.quantity }
         });
 
-        // Check if there is at least one item to cancel
-        if (order.items.length > 0) {
-            // Assuming we only cancel the first item in the order for this example
-            const itemToCancel = order.items[0]; // Get the first item
-            const product = itemToCancel.productId; // Get the populated product
+        // Recalculate order totals, excluding canceled items
+        const updatedSubtotal = order.items.reduce((sum, item) => {
+            if (!item.isCancelled) {
+                return sum + item.productId.price * item.quantity;
+            }
+            return sum;
+        }, 0);
+        
+        order.subtotal = updatedSubtotal;
+        order.total = updatedSubtotal + order.shipping - order.discount;
 
-            // Prepare the message with the specific book name
-            const message = `Order cancelled. Book: ${product.title}`; // Get the book name
+        // If no items remain, update order status to canceled
+        if (order.items.every(item => item.isCancelled)) {
+            order.status = 'cancelled';
+            order.cancelledAt = new Date();
+        }
 
-            // Increase the stock quantity of the canceled book
-            await Book.findByIdAndUpdate(product._id, {
-                $inc: { stock: itemToCancel.quantity } // Increment stock by the quantity of the item
+        await order.save();
+
+        // Wallet operations for non-COD payments
+        if (order.paymentMethod !== 'cashOnDelivery') {
+            const refundAmount = itemToCancel.productId.price * itemToCancel.quantity;
+
+            let wallet = await Wallet.findOne({ userId: order.userId });
+            if (!wallet) {
+                wallet = await Wallet.create({ userId: order.userId });
+            }
+
+            wallet.balance += refundAmount;
+            wallet.transactions.push({
+                amount: refundAmount,
+                transactionType: 'credit',
+                orderId: orderId,
+                message: `Refund for canceled product: ${itemToCancel.productId.title}`
             });
 
-            // Wallet operations only for payments that are not cash on delivery
-            if (order.paymentMethod !== 'cashOnDelivery') {
-                const userId = order.userId; // Assuming the order has a userId field
-                const orderTotal = order.total; // Assuming the total amount is stored in the order
-
-                // Find or create the wallet for the user
-                let wallet = await Wallet.findOne({ userId });
-                if (!wallet) {
-                    wallet = await Wallet.create({ userId });
-                }
-
-                // Credit the wallet and log the transaction
-                wallet.balance += orderTotal; // Add the order total to the wallet balance
-                wallet.transactions.push({
-                    amount: orderTotal,
-                    transactionType: 'credit',
-                    orderId: orderId,
-                    message: message // Include the message about the cancelled book
-                });
-
-                await wallet.save(); // Save the updated wallet
-            }
+            await wallet.save();
         }
 
         res.redirect('/profile/orders');
@@ -357,6 +399,7 @@ const getOrders = async (req, res) => {
         res.status(500).send('Server error');
     }
 };
+
 
 
 
@@ -536,20 +579,23 @@ const generateInvoicePDF = async (
   
     // Table content
     let yPosition = 275;
-    order.items.forEach((item) => {
-      const productName = item.productId.title;
-      const unitPrice = item.productId.price;
-      const quantity = item.quantity;
-      const totalPrice = unitPrice * quantity;
-  
-      doc.fontSize(10).font("Helvetica")
-        .text(productName, colProduct, yPosition, { width: 250 })
-        .text(quantity.toString(), colQuantity, yPosition)
-        .text(`$${unitPrice.toFixed(2)}`, colPrice, yPosition)
-        .text(`$${totalPrice.toFixed(2)}`, colTotal, yPosition);
-  
-      yPosition += 20;
-    });
+    order.items
+  .filter(item => item.isCancelled === false)
+  .forEach((item) => {
+    const productName = item.productId.title;
+    const unitPrice = item.productId.price;
+    const quantity = item.quantity;
+    const totalPrice = unitPrice * quantity;
+
+    doc.fontSize(10).font("Helvetica")
+      .text(productName, colProduct, yPosition, { width: 250 })
+      .text(quantity.toString(), colQuantity, yPosition)
+      .text(`$${unitPrice.toFixed(2)}`, colPrice, yPosition)
+      .text(`$${totalPrice.toFixed(2)}`, colTotal, yPosition);
+
+    yPosition += 20;
+  });
+
   
     drawHorizontalLine(yPosition + 10);
   
@@ -637,6 +683,24 @@ const retryPayment = async (req, res) => {
 }
 
 
+const setDefaultAddress = async (req, res) => {
+    const { id } = req.params; // Address ID to mark as default
+    const userId = req.session.user.id;
+  
+    try {
+      // Unset the default flag for all addresses of the user
+      await Address.updateMany({ userId }, { $set: { isDefault: false } });
+  
+      // Set the selected address as default
+      await Address.findByIdAndUpdate(id, { $set: { isDefault: true } });
+  
+      res.redirect('/profile/addresses'); // Redirect back to the address management page
+    } catch (error) {
+      console.error(error);
+      res.status(500).send('Error setting default address.');
+    }
+  };
+
 module.exports = {
     processCheckout,
     getOrders,
@@ -649,5 +713,7 @@ module.exports = {
     getInvoice,
     updateOrderStatus,
     retryPayment,
-    paymentFailed
+    paymentFailed,
+    walletBalance,
+    setDefaultAddress
 };

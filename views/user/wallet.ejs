@@ -237,57 +237,115 @@
                 <button class="filter-btn active">Today</button>
             </div>
         </div>
-<style>
-    .transaction-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-}
-
-.transaction-icon {
-    font-size: 24px;
-    margin-right: 10px;
-}
-
-.transaction-details {
-    flex-grow: 1;
-}
-
-.transaction-type {
-    font-weight: bold;
-    margin-bottom: 5px;
-}
-
-.transaction-date {
-    color: #666;
-    font-size: 14px;
-}
-
-.transaction-note {
-    color: #999;
-    font-size: 13px;
-    margin-top: 5px;
-}
-
-.transaction-amount {
-    font-size: 16px;
-    font-weight: bold;
-    margin-left: 20px;
-}
-
-.transaction-balance {
-    font-size: 14px;
-    color: #333;
-    margin-left: 20px;
-}
-
-.transaction-status {
-    font-size: 14px;
-    margin-left: 20px;
-}
-
-</style>
+        <style>
+            .transaction-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px;
+            }
+        
+            .transaction-icon {
+                font-size: 24px;
+                margin-right: 10px;
+            }
+        
+            .transaction-details {
+                flex-grow: 1;
+            }
+        
+            .transaction-type {
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+        
+            .transaction-date {
+                color: #666;
+                font-size: 14px;
+            }
+        
+            .transaction-note {
+                color: #999;
+                font-size: 13px;
+                margin-top: 5px;
+            }
+        
+            .transaction-amount {
+                font-size: 16px;
+                font-weight: bold;
+                margin-left: 20px;
+            }
+        
+            .transaction-balance {
+                font-size: 14px;
+                color: #333;
+                margin-left: 20px;
+            }
+        
+            .transaction-status {
+                font-size: 14px;
+                margin-left: 20px;
+            }
+        
+            /* Pagination Styles */
+            .pagination-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-top: 20px;
+                padding: 15px 0;
+            }
+        
+            .pagination {
+                display: flex;
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                gap: 5px;
+            }
+        
+            .pagination-item {
+                display: inline-block;
+            }
+        
+            .pagination-link {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 35px;
+                height: 35px;
+                padding: 0 5px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                text-decoration: none;
+                color: #333;
+                transition: all 0.3s ease;
+            }
+        
+            .pagination-link:hover {
+                background-color: #f5f5f5;
+            }
+        
+            .pagination-link.active {
+                background-color: #007bff;
+                color: white;
+                border-color: #007bff;
+            }
+        
+            .pagination-link.disabled {
+                color: #ccc;
+                pointer-events: none;
+                background-color: #f8f9fa;
+            }
+        
+            .pagination-info {
+                text-align: center;
+                color: #666;
+                font-size: 14px;
+                margin-top: 10px;
+            }
+        </style>
+        
         <div class="transaction-list">
             <% if (wallet && wallet.transactions.length > 0) { %>
                 <% wallet.transactions.forEach(txn => { %>
@@ -303,18 +361,44 @@
                             <% } %>
                         </div>
                         <div class="transaction-amount"><%= txn.transactionType === 'credit' ? '+' : '-' %>₹<%= Math.abs(txn.amount).toFixed(2) %></div>
-                        
                         <div class="transaction-status <%= txn.transactionType === 'credit' ? 'status-completed' : 'status-pending' %>">
-                            <%= txn.transactionType === 'credit' ? 'Completed' : 'Pending' %>
+                            <%= txn.transactionType === 'credit' || txn.transactionType === 'debit' ? 'Completed' : 'Pending' %>
                         </div>
                     </div>
-                    
                 <% }) %>
+        
+                <!-- Pagination -->
+                <div class="pagination-container">
+                    <ul class="pagination">
+                        <li class="pagination-item">
+                            <a href="?page=1" class="pagination-link <%= currentPage === 1 ? 'disabled' : '' %>">«</a>
+                        </li>
+                        <li class="pagination-item">
+                            <a href="?page=<%= currentPage - 1 %>" class="pagination-link <%= currentPage === 1 ? 'disabled' : '' %>">‹</a>
+                        </li>
+                        
+                        <% for(let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) { %>
+                            <li class="pagination-item">
+                                <a href="?page=<%= i %>" class="pagination-link <%= currentPage === i ? 'active' : '' %>"><%= i %></a>
+                            </li>
+                        <% } %>
+                        
+                        <li class="pagination-item">
+                            <a href="?page=<%= currentPage + 1 %>" class="pagination-link <%= currentPage === totalPages ? 'disabled' : '' %>">›</a>
+                        </li>
+                        <li class="pagination-item">
+                            <a href="?page=<%= totalPages %>" class="pagination-link <%= currentPage === totalPages ? 'disabled' : '' %>">»</a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="pagination-info">
+                    Showing <%= (currentPage - 1) * 10 + 1 %> to <%= Math.min(currentPage * 10, totalTransactions) %> of <%= totalTransactions %> transactions
+                </div>
             <% } else { %>
                 <div>No transactions found.</div>
             <% } %>
         </div>
-    </div>
 </div>
 
     

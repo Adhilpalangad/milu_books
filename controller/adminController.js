@@ -185,7 +185,8 @@ const unblockUser = async (req, res) => {
             const books = await Book.find({ isActive: true })
                 .populate('categoryId')  
                 .skip(skip)
-                .limit(limit);
+                .limit(limit)
+            .sort({ createdAt: -1 });
     
             
     
@@ -435,8 +436,8 @@ const getOrders = async (req, res) => {
             .populate('items.productId')
             .populate('userId')
             .limit(limit)
-            .skip(skip); // Fetch the orders for the current page
-
+            .skip(skip) // Fetch the orders for the current page
+            .sort({createdAt:-1})
         const totalPages = Math.ceil(totalOrders / limit); // Calculate total pages
 
         // Log fetched orders for debugging

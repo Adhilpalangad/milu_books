@@ -100,8 +100,7 @@ const getCart = async (req, res) => {
                 quantity: item.quantity,
                 total: item.productId.price * item.quantity 
             };
-        });
-
+        })
         res.render('user/cart', { items });
     } catch (error) {
         console.log(error);
@@ -194,29 +193,52 @@ const updateCartQuantity = async (req, res) => {
         res.status(500).json({ success: false, message: 'Error updating cart' });
     }
 };
-
-
 const getCartItems = async (req, res) => {
     try {
         const userId = req.session.user.id;
 
         if (!userId) {
-            return res.redirect('/login');
+            return req.xhr
+                ? res.json({ redirect: '/login' }) // For AJAX
+                : res.redirect('/login'); // For direct navigation
         }
 
         const cart = await Cart.findOne({ userId }).populate('items.productId');
 
         if (!cart || cart.items.length === 0) {
-            return res.redirect('/cart'); // Ensure function exits after redirect
+            return req.xhr
+                ? res.json({ redirect: '/cart' })
+                : res.redirect('/cart');
+        }
+
+        // **Check Stock Availability**
+        const outOfStockItems = [];
+        let stockError = false;
+        for (let item of cart.items) {
+            if (item.productId.stock < item.quantity) {
+                stockError = true;
+                outOfStockItems.push({
+                    name: item.productId.title,
+                    availableStock: item.productId.stock,
+                    requestedQuantity: item.quantity,
+                    productId: item.productId._id,
+                });
+            }
+        }
+
+        if (stockError) {
+            return req.xhr
+                ? res.json({ stockError: true, outOfStockItems }) // For AJAX
+                : res.render('user/cart', { stockError: true, outOfStockItems }); // For navigation
         }
 
         // Map cart items for displaying
-        const items = cart.items.map(item => ({
+        const items = cart.items.map((item) => ({
             productId: item.productId._id,
             name: item.productId.title,
             imageUrl: item.productId.images[0],
             price: item.productId.price,
-            quantity: item.quantity
+            quantity: item.quantity,
         }));
 
         // Calculate subtotal
@@ -228,55 +250,69 @@ const getCartItems = async (req, res) => {
         const offers = await Offer.find({
             isActive: true,
             validFrom: { $lte: currentDate },
-            validUntil: { $gte: currentDate }
+            validUntil: { $gte: currentDate },
         });
 
         for (let offer of offers) {
-            const applicableProducts = offer.applicableProducts.map(id => id.toString());
-            const applicableCategories = offer.applicableCategories.map(id => id.toString()); // Ensure it's an array of strings
-            console.log('applicable category', applicableCategories);
+            const applicableProducts = offer.applicableProducts.map((id) => id.toString());
+            const applicableCategories = offer.applicableCategories.map((id) => id.toString());
             for (let item of cart.items) {
                 const product = item.productId;
 
                 if (
-                    applicableProducts.includes(product._id.toString()) || 
-                    applicableCategories.includes(product.categoryId.toString())  
+                    applicableProducts.includes(product._id.toString()) ||
+                    applicableCategories.includes(product.categoryId.toString())
                 ) {
                     offerDiscount += (product.price * item.quantity * offer.discount) / 100;
                 }
             }
         }
 
-        const additionalFee = subtotal < 25 ? 5 : 0; 
+        const additionalFee = subtotal < 25 ? 5 : 0;
         const total = subtotal - offerDiscount + additionalFee;
 
-        console.log('subtotal', subtotal);
-        console.log('offerDiscount', offerDiscount);
-        console.log('total', total);
-
         const addresses = await Address.find({ userId });
-        
-        // Render checkout page
-        res.render('user/checkout', { items, subtotal, offerDiscount, addresses, cart, total });
+
+        // Render or return JSON based on request type
+        if (req.xhr) {
+            return res.json({
+                stockError: false,
+                items,
+                subtotal,
+                offerDiscount,
+                total,
+                addresses,
+            });
+        } else {
+            return res.render('user/checkout', {
+                items,
+                subtotal,
+                offerDiscount,
+                total,
+                addresses,
+            });
+        }
     } catch (error) {
         console.error('Error fetching cart items:', error);
-        res.status(500).send('Internal server error');
+        return res.status(500).send('Internal server error');
     }
 };
+
+
+
 
 const addToCartFromWishlist = async (req, res) => {
     
 
     try {
         const { productId } = req.body;
-    const userId = req.session.user.id;
+        const userId = req.session.user.id;
         let cart = await Cart.findOne({ userId });
         if (!cart) {
             cart = new Cart({ userId, items: [] });
         }
 
         const product = await Book.findById(productId);
-        console.log('product from wishlist',product)
         if (!product) {
             return res.status(404).json({ success: false, message: 'Product not found' });
         }
@@ -304,10 +340,8 @@ const addToCartFromWishlist = async (req, res) => {
         await cart.save();
 
         // Remove the product from the wishlist after adding it to the cart
-        await Wishlist.findOneAndUpdate(
-            { userId },
-            { $pull: { items: { productId: product._id } } }
-        );
+        await Wishlist.findOneAndDelete({ userId, productId });
+
 
         // Redirect to the wishlist page or send a success response
         res.redirect('/wishlist');

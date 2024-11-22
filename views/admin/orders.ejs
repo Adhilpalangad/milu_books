@@ -14,6 +14,8 @@
     <link rel="shortcut icon" href="/assets/images/favicon.png" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+
 </head>
 <body>
     <div class="container-scroller">
@@ -38,6 +40,8 @@
                                                 <th>Quantity</th>
                                                 <th>Status</th>
                                                 <th>Action</th>
+                                                <th>View</th>
+
                                             </tr>
                                         </thead>
                                         <tbody id="order-table-body">
@@ -55,6 +59,8 @@
                                                             </div>
                                                         </td>
                                                         <td>
+                                                            <!-- Eye Button -->
+                                                            
                                                             <% if (order.returnStatus === 'requested') { %>
                                                                 <form action="/admin/orders/<%= order._id %>/return/approve" method="POST" class="inline">
                                                                     <button type="submit" class="text-green-600 hover:text-green-800">Approve</button>
@@ -62,7 +68,7 @@
                                                                 <form action="/admin/orders/<%= order._id %>/return/reject" method="POST" class="inline">
                                                                     <button type="submit" class="text-red-600 hover:text-red-800">Reject</button>
                                                                 </form>
-                                                                <p>Reason: <%= order.returnReason %></p> <!-- Display the reason for return -->
+                                                                <p>Reason: <%= order.returnReason %></p>
                                                             <% } else { %>
                                                                 <form action="/admin/orders/<%= order._id %>/status" method="POST" class="order-status-form">
                                                                     <input type="hidden" name="_method" value="PUT">
@@ -75,14 +81,63 @@
                                                                 </form>
                                                             <% } %>
                                                         </td>
+                                                        <td>
+                                                            <button type="button" class="btn btn-sm btn-info" data-toggle="modal" data-target="#orderModal<%= order._id %>">
+                                                                <i class="fas fa-eye"></i>
+                                                            </button>
+                                                        </td>
                                                     </tr>
+                                    
+                                                    <!-- Order Details Modal -->
+                                                    <div class="modal fade" id="orderModal<%= order._id %>" tabindex="-1" role="dialog" aria-labelledby="orderModalLabel<%= order._id %>" aria-hidden="true">
+                                                        <div class="modal-dialog modal-lg" role="document">
+                                                            <div class="modal-content">
+                                                                <div class="modal-header">
+                                                                    <h5 class="modal-title" id="orderModalLabel<%= order._id %>">Order Details: <%= order.OrderId %></h5>
+                                                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                                        <span aria-hidden="true">&times;</span>
+                                                                    </button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    <p><strong>Customer Name:</strong> <%= order.userId.name %></p>
+                                                                    <p><strong>Order Date:</strong> <%= order.createdAt.toLocaleDateString() %></p>
+                                                                    <p><strong>Status:</strong> <%= order.status %></p>
+                                                                    <p><strong>Total Amount:</strong> ₹<%= order.total.toFixed(2) %></p>
+                                                                    
+                                                                    <h5>Delivery Address:</h5>
+                                                                    <p><strong>Full Name:</strong> <%= order.address.fullName %></p>
+                                                                    <p><strong>Street:</strong> <%= order.address.street %></p>
+                                                                    <p><strong>City:</strong> <%= order.address.city %></p>
+                                                                    <p><strong>State:</strong> <%= order.address.state %></p>
+                                                                    <p><strong>Country:</strong> <%= order.address.country %></p>
+                                                                    <p><strong>Postal Code:</strong> <%= order.address.postalCode %></p>
+                                                    
+                                                                    <h5>Items:</h5>
+                                                                    <ul>
+                                                                        <% order.items.forEach(function(item) { %>
+                                                                            <li>
+                                                                                <%= item.productId.title %> x <%= item.quantity %> - ₹<%= item.productId.price.toFixed(2) %>
+                                                                                <% if (item.isCancelled) { %>
+                                                                                    <span class="badge badge-danger">Canceled</span>
+                                                                                <% } %>
+                                                                            </li>
+                                                                        <% }) %>
+                                                                    </ul>
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
                                                 <% }) %>
                                             <% } else { %>
                                                 <tr><td colspan="7">No orders found.</td></tr>
                                             <% } %>
                                         </tbody>
-                                        
                                     </table>
+                                    
                                 </div>
             
                                 <!-- Pagination Controls -->

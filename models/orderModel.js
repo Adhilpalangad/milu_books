@@ -6,7 +6,9 @@ const orderSchema = new mongoose.Schema({
     items: [
         {
             productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Book', required: true },
-            quantity: { type: Number, required: true }
+            quantity: { type: Number, required: true },
+            isCancelled: { type: Boolean, default: false }, // New field to track canceled status
+            cancelledAt: { type: Date }, // Optional: Timestamp when canceled
         }
     ],
     address: {
@@ -17,7 +19,7 @@ const orderSchema = new mongoose.Schema({
         country: { type: String, required: true },
         postalCode: { type: String, required: true }
     },
-    paymentMethod: { type: String, enum: ['bankTransfer', 'cashOnDelivery', 'razorpay'], required: true },
+    paymentMethod: { type: String, enum: ['wallet', 'cashOnDelivery', 'razorpay'], required: true },
     subtotal: { type: Number, required: true },
     discount: { type: Number, default: 0 },  // New field for combined offer and coupon discounts
     shipping: { type: Number, required: true },

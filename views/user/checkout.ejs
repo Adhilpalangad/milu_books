@@ -1,5 +1,4 @@
 <%- include("partials/header.ejs") %>
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <style>
     * {
@@ -339,19 +338,73 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
                 
                 
                         <h4 class="mt-4">Payment Method</h4>
-<div class="form-group">
-    <div class="form-check">
-        <input class="form-check-input" type="radio" name="paymentMethod" id="cashOnDelivery" value="cashOnDelivery" required>
-        <label class="form-check-label" for="cashOnDelivery">Cash on Delivery</label>
-    </div>
-    <div class="form-check">
-        <input class="form-check-input" type="radio" name="paymentMethod" id="razorpay" value="razorpay" required>
-        <label class="form-check-label" for="razorpay">Pay with Razorpay</label>
-    </div>
-</div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input"
+                                    type="radio"
+                                    name="paymentMethod"
+                                    id="cashOnDelivery"
+                                    value="cashOnDelivery"
+                                    required
+                                />
+                                <label class="form-check-label" for="cashOnDelivery">Cash on Delivery</label>
+                            </div>
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input"
+                                    type="radio"
+                                    name="paymentMethod"
+                                    id="razorpay"
+                                    value="razorpay"
+                                    required
+                                />
+                                <label class="form-check-label" for="razorpay">Pay with Razorpay</label>
+                            </div>
+                            <div class="form-check">
+                                <input
+                                    class="form-check-input"
+                                    type="radio"
+                                    name="paymentMethod"
+                                    id="wallet"
+                                    value="wallet"
+                                    required
+                                />
+                                <label class="form-check-label" for="wallet">Pay with Wallet</label>
+                            </div>
+                            <div id="wallet-balance" style="display: none; margin-top: 5px;">
+                                Wallet Balance: ₹<span id="balance-amount">0</span>
+                            </div>
+                        </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+//get wallet balance
+
+document.addEventListener('DOMContentLoaded', async () => {
+    const walletInput = document.getElementById('wallet');
+    const balanceContainer = document.getElementById('wallet-balance');
+    const balanceAmount = document.getElementById('balance-amount');
+
+    // Fetch wallet balance from backend
+    try {
+        const response = await fetch('/wallet/balance');
+        if (response.ok) {
+            const { balance } = await response.json();
+            balanceAmount.textContent = balance;
+        }
+    } catch (error) {
+        console.error('Error fetching wallet balance:', error);
+    }
+
+    // Show wallet balance when the wallet option is selected
+    walletInput.addEventListener('change', () => {
+        balanceContainer.style.display = 'block';
+    });
+});
+
+
+
     document.addEventListener("DOMContentLoaded", function () {
         const total = <%= total %>;
         const codOption = document.getElementById("cashOnDelivery");
@@ -371,6 +424,7 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
 </script>
 
                         
+                        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
                             
                             
@@ -399,7 +453,8 @@ async function handlePayment(e) {
     let formDataObject = Object.fromEntries(formData.entries());
     const selectedPaymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
     formDataObject.paymentMethod = selectedPaymentMethod;
-
+    console.log('formdata',formDataObject);
+    
     if (selectedPaymentMethod === 'razorpay') {
         try {
             // Send form data as JSON to the server to create the order
@@ -496,33 +551,45 @@ async function handlePayment(e) {
     } else {
         // Handle non-Razorpay payment methods
         try {
-            const response = await fetch('/checkout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formDataObject),
-            });
+    const response = await fetch('/checkout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formDataObject),
+    });
 
-            if (!response.ok) {
-                const errorMessage = await response.text();
-                throw new Error(errorMessage || 'Failed to process non-Razorpay payment');
-            }
+    if (!response.ok) {
+        const errorMessage = await response.text(); // Get detailed error message from backend
+        throw new Error(errorMessage || 'Failed to process non-Razorpay payment');
+    }
 
-            const data = await response.json(); // Assuming the backend sends back the order ID in the response
-            const orderId = data.orderId; // Adjust this line based on your backend response structure
+    const data = await response.json(); // Assuming the backend sends back the order ID in the response
+    const orderId = data.orderId; // Adjust this line based on your backend response structure
 
-            // Redirect to success page with order ID
-            window.location.href = `/success?orderId=${orderId}`;
-        } catch (error) {
-            console.error('Error during non-Razorpay payment processing:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'An error occurred while processing your payment. Please try again.',
-            });
-            window.location.href = '/failed';
-        }
+    // Redirect to success page with order ID
+    window.location.href = `/success?orderId=${orderId}`;
+} catch (error) {
+    console.error('Error during non-Razorpay payment processing:', error);
+
+    // Handle specific error messages
+    let errorMessage = 'An error occurred while processing your payment. Please try again.';
+    if (error.message.includes('Insufficient wallet balance')) {
+        errorMessage = 'Your wallet balance is insufficient to complete this payment.';
+    } else if (error.message.includes('Network error')) {
+        errorMessage = 'A network error occurred. Please check your internet connection and try again.';
+    } else if (error.message.includes('Server error')) {
+        errorMessage = 'A server error occurred. Please try again later.';
+    }
+
+    // Display the appropriate error message to the user
+    Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: errorMessage,
+    });
+}
+
     }
 }
 
@@ -653,26 +720,9 @@ function removeCoupon() {
     }
         //=========================script for order========================
 
-        function enablePlaceOrderButton() {
-            const selectedAddress = document.getElementById('selectedAddress').value;
-            const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked');
-            const newFullName = document.getElementById('newFullName').value.trim();
-            const newStreet = document.getElementById('newStreet').value.trim();
-            const newCity = document.getElementById('newCity').value.trim();
-            const newState = document.getElementById('newState').value.trim();
-            const newCountry = document.getElementById('newCountry').value.trim();
-            const newPostalCode = document.getElementById('newPostalCode').value.trim();
+        
 
-            if ((selectedAddress && paymentMethod) || (newFullName && newStreet && newCity && newState && newCountry && newPostalCode)) {
-                document.getElementById('payBtn').disabled = false;
-            } else {
-                document.getElementById('payBtn').disabled = true;
-            }
-        }
-
-        document.querySelectorAll('input[name="paymentMethod"]').forEach(input => {
-            input.addEventListener('change', enablePlaceOrderButton);
-        });
+        
 
         
     </script>

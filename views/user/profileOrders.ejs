@@ -1,4 +1,6 @@
 <%- include("partials/profileHeader.ejs", { currentUrl: currentUrl }) %>
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <div id="orders" class="bg-white rounded-lg shadow-md p-6">
     <h1 class="text-2xl font-semibold mb-4">My Orders</h1>
@@ -6,14 +8,10 @@
         <ul>
             <% orders.forEach(order => { %>
                 <li class="mb-4 p-4 border-b flex flex-col">
-                    <!-- Product details for each item in the order -->
-                    <!-- Order Items Section -->
-<!-- Order Items Section -->
-<!-- Order Items Section -->
 <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-lg p-4 my-6">
     <!-- Order Items Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <% order.items.forEach(item => { %>
+        <% order.items.filter(item => !item.isCancelled).forEach(item => { %>
             <div class="bg-gray-50 rounded-lg transition duration-300 hover:bg-gray-100 hover:shadow-md">
                 <div class="flex p-3 space-x-3">
                     <!-- Product image -->
@@ -22,7 +20,7 @@
                              alt="<%= item.productId.title %>" 
                              class="w-full h-full object-cover rounded-md">
                     </div>
-
+    
                     <!-- Product details -->
                     <div class="flex-grow min-w-0">
                         <h3 class="text-sm font-semibold text-gray-800 truncate">
@@ -41,6 +39,7 @@
             </div>
         <% }) %>
     </div>
+    
 
     <!-- Order Summary Section -->
     <div class="mt-6 border-t pt-4">
@@ -111,7 +110,7 @@
                         <% } else if (order.paymentStatus === 'failed' && order.paymentMethod !== 'cashOnDelivery') { %>
                             <button class="btn btn-primary retry-payment-btn" data-order-id="<%= order._id %>">Retry Payment</button>
                         <% } 
-                         else if (order.status === 'paid' || order.paymentMethod === 'cashOnDelivery') { %>
+                         else if (order.status === 'paid' || order.paymentMethod === 'cashOnDelivery' || order.paymentMethod === 'wallet' ) { %>
                         <% if (!['approved', 'rejected'].includes(order.returnStatus)) { %>
                             Expected: <%= new Date(new Date(order.createdAt).setDate(new Date(order.createdAt).getDate() + 5)).toLocaleDateString() %>
                         <% } else { %>
@@ -217,14 +216,7 @@
                 
 
                 <!-- Cancel Button -->
-                <% if (order.status !== 'cancelled' && order.paymentStatus !== 'failed' && order.status !== 'delivered' && order.status !== 'returned' && (order.paymentMethod === 'cashOnDelivery' || order.paymentMethod === 'razorpay')) { %>
-                    <form action="/orders/cancel/<%= order._id %>" method="POST" class="inline-block">
-                        <button type="submit" 
-                                class="bg-red-500 hover:bg-red-600 text-white text-sm font-medium py-1.5 px-3 rounded-full transition duration-300">
-                            Cancel Order
-                        </button>
-                    </form>
-                <% } %>
+                
             </div>
         </div>
 
@@ -239,16 +231,33 @@
                     
                     
                     <!-- Return button, shown only if order is delivered -->
-                    <% if (order.status === 'delivered' && order.returnStatus !== 'requested' && order.returnStatus !== 'approved') { %>
-                        <!-- Trigger Modal for Return Request -->
-                        <button data-toggle="modal" data-target="#returnModal<%= order._id %>" class="text-blue-600 hover:text-blue-800">Request Return ||</button>
-                    <% } %>
+                    <% 
+    const today = new Date();
+    const deliveredDate = new Date(order.deliveredAt); // Assuming `order.deliveredDate` stores the delivery date
+    const isReturnAllowed = (today - deliveredDate) / (1000 * 60 * 60 * 24) <= 7; // Check if within 7 days
+%>
+
+<% if (order.status === 'delivered' && order.returnStatus !== 'requested' && order.returnStatus !== 'approved') { %>
+    <% if (isReturnAllowed) { %>
+        <!-- Trigger Modal for Return Request -->
+        <button data-toggle="modal" data-target="#returnModal<%= order._id %>" class="text-blue-600 hover:text-blue-800">
+            Request Return ||
+        </button>
+    <% } else { %>
+        <!-- Disabled Button -->
+        <button class="text-gray-400" disabled>
+            Return Period Expired
+        </button>
+    <% } %>
+<% } %>
+
                     
                     <!-- Button to View Order Details in Modal -->
                     <button data-toggle="modal" data-target="#orderModal<%= order._id %>" class="text-blue-600 hover:text-blue-800">View Order Details</button>
                     
                     <!-- Modal for Order Details -->
                     <!-- Modal Structure -->
+                    <!-- Modal to show order details -->
 <div class="modal fade" id="orderModal<%= order._id %>" tabindex="-1" role="dialog" aria-labelledby="orderModalLabel<%= order._id %>" aria-hidden="true">
     <div class="modal-dialog modal-lg custom-centered-modal" role="document">
         <div class="modal-content">
@@ -264,16 +273,45 @@
                 <p><strong>Payment Method:</strong> <%= order.paymentMethod %></p>
                 <p><strong>Total Amount:</strong> ₹<%= order.total.toFixed(2) %></p>
                 
+                <h5>Delivery Address:</h5>
+                <p><strong>Full Name:</strong> <%= order.address.fullName %></p>
+                <p><strong>Street:</strong> <%= order.address.street %></p>
+                <p><strong>City:</strong> <%= order.address.city %></p>
+                <p><strong>State:</strong> <%= order.address.state %></p>
+                <p><strong>Country:</strong> <%= order.address.country %></p>
+                <p><strong>Postal Code:</strong> <%= order.address.postalCode %></p>
+                
                 <h5>Items:</h5>
-                <ul>
-                    <% order.items.forEach(function(item) { %>
-                        <li><%= item.productId.name %> x <%= item.quantity %> - ₹<%= item.productId.price.toFixed(2) %></li>
-                    <% }) %>
-                </ul>
+<table class="table table-sm">
+    <tbody>
+        <% order.items.forEach(function(item) { %>
+            <tr>
+                <td class="align-middle">
+                    <%= item.productId.title %> 
+                    <% if (item.isCancelled) { %>
+                        <span class="badge badge-danger">Canceled</span>
+                    <% } %>
+                </td>
+                <td class="text-right align-middle">
+                    ₹<%= (item.isCancelled ? 0 : item.productId.price) * item.quantity %>
+                </td>
+                <% if (order.status === 'pending' || order.status === 'paid') { %>
+                    <td class="text-center align-middle">
+                        <button class="btn btn-danger btn-sm" onclick="cancelOrderItem('<%= order._id %>', '<%= item.productId._id %>')">
+                            Cancel
+                        </button>
+                    </td>
+                <% } %>
+            </tr>
+        <% }) %>
+    </tbody>
+</table>
+
+
 
                 <!-- Download Invoice Button -->
                 <% if (order.status === 'delivered') { %>
-                    <a href="/orders/<%= order._id %>/invoice" class="btn btn-primary" download>Download Invoice</a>
+                    <a href="/orders/<%= order._id %>/invoice" class="btn btn-primary mt-3" download>Download Invoice</a>
                 <% } %>
             </div>
             <div class="modal-footer">
@@ -282,6 +320,61 @@
         </div>
     </div>
 </div>
+
+<script>
+    function cancelOrderItem(orderId, productId) {
+    // Show SweetAlert confirmation dialog
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "Do you really want to cancel this item?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, cancel it!',
+        cancelButtonText: 'No, keep it'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Proceed with the cancellation
+            fetch(`/orders/${orderId}/cancel/${productId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then((response) => {
+                if (response.ok) {
+                    // Success: show SweetAlert success message
+                    Swal.fire(
+                        'Canceled!',
+                        'The item has been canceled successfully.',
+                        'success'
+                    ).then(() => {
+                        location.reload(); // Refresh the page to update the order items
+                    });
+                } else {
+                    // Failure: show SweetAlert error message
+                    Swal.fire(
+                        'Failed!',
+                        'Failed to cancel the item. Please try again.',
+                        'error'
+                    );
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                Swal.fire(
+                    'Error!',
+                    'Something went wrong. Please try again later.',
+                    'error'
+                );
+            });
+        }
+    });
+}
+
+</script>
+
+                    
+                    
 
 <!-- Custom CSS for Full-Centering Modal -->
 <style>

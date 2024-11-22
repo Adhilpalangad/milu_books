@@ -147,7 +147,7 @@
         document.querySelectorAll('.move-to-cart').forEach(button => {
             button.addEventListener('click', function () {
                 const productId = this.getAttribute('data-product-id');
-    
+                
                 Swal.fire({
                     title: "Move to Cart",
                     text: "Are you sure you want to move this item to your cart?",
@@ -162,6 +162,7 @@
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ productId: productId })
+                            
                         })
                         .then(response => response.json())
                         .then(data => {
@@ -174,9 +175,11 @@
                         .catch(error => console.error('Error:', error));
                     }
                 });
+
             });
+
         });
-    
+
         // SweetAlert for "Remove from Wishlist" action with AJAX
         document.querySelectorAll('.remove-from-wishlist').forEach(button => {
             button.addEventListener('click', function () {

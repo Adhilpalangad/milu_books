@@ -28,12 +28,12 @@ router.get('/login',userAuthed, (req, res) => {
 router.get('/home',userAuth,userController.getHome)
 router.get('/products',userAuth, userController.getProducts);
 router.get('/product-detail/:id',userAuth, userController.getProductDetail);
-router.post('/signup', userController.userSignup);
-router.post('/login', userController.userLogin);
+router.post('/signup',userAuthed, userController.userSignup);
+router.post('/login',userAuthed, userController.userLogin);
 router.post('/logout', userController.logout);
-router.post('/verify-otp', userController.verifyOtp);
-router.get('/verify-otp',userController.verifyOtpPage)      
-router.post('/resend-otp', userController.resendOtp);  
+router.post('/verify-otp',userAuthed, userController.verifyOtp);
+router.get('/verify-otp',userAuthed,userController.verifyOtpPage)      
+router.post('/resend-otp',userAuthed, userController.resendOtp);  
 router.get('/profile', userAuth, userController.getProfile)
 router.post('/profile/update', userAuth,userController.profileEdit)
 router.post('/addresses/add', userAuth, userController.addAddress);
@@ -46,31 +46,34 @@ router.post('/cart/update-quantity/:productId', userAuth, cartController.updateC
 router.post('/verify-razorpay-payment', checkoutController.verifyPayment);
 router.post('/checkout', userAuth, checkoutController.processCheckout);
 router.get('/checkout', userAuth, cartController.getCartItems)
+router.get('/wallet/balance', userAuth,checkoutController.walletBalance)
 router.get('/success', userAuth, checkoutController.orderPlaced)
 router.get('/failed',userAuth,checkoutController.paymentFailed)
 router.get('/profile', userAuth, checkoutController.getPersonal)
 router.get('/profile/orders', userAuth, checkoutController.getOrders)
 router.get('/profile/addresses', userAuth, userController.getAddresses)
-router.post('/orders/cancel/:orderId', userAuth, checkoutController.cancelOrder);
-router.get('/forgot-password', userController.forgotPasswordPage);
-router.post('/forgot-password', userController.forgotPassword);
-router.get('/verify-otp-forgot', userController.verifyOtpPass);
-router.post('/verify-otp-forgot', userController.verifyForgotPasswordOtp);
-router.get('/reset-password', userController.resetPasswordPage);
-router.post('/reset-password', userController.resetPassword);
-router.post('/verifyPayment',checkoutController.verifyPayment)
-router.post('/validateCoupon',checkoutController.validateCoupon)
-router.get('/wishlist',userController.getWishlistItems) 
-router.post('/wishlistAdd/:id',userController.addBooksWishlist)    
-router.post('/wishlist/remove/:id', userController.removeWishlist)
-router.post('/addtocart/wishlist', cartController.addToCartFromWishlist)
-router.get('/wallet', userController.getWallet)
-router.post('/orders/return/:orderId', checkoutController.returnOrderRequest); // User return request
-router.get('/orders/:orderId/invoice',checkoutController.getInvoice)
-router.put('/update-order-status/:orderId',checkoutController.updateOrderStatus)
-router.get('/order-details/:orderId',checkoutController.retryPayment)
-router.get('/contact', userController.contactPage)
-router.get('/about', userController.aboutPage)
+router.post('/orders/:orderId/cancel/:productId', userAuth, checkoutController.cancelOrder);
+router.get('/forgot-password',userAuth, userController.forgotPasswordPage);
+router.post('/forgot-password',userAuth, userController.forgotPassword);
+router.get('/verify-otp-forgot',userAuth, userController.verifyOtpPass);
+router.post('/verify-otp-forgot',userAuth, userController.verifyForgotPasswordOtp);
+router.get('/reset-password',userAuth, userController.resetPasswordPage);
+router.post('/reset-password',userAuth, userController.resetPassword);
+router.post('/verifyPayment',userAuth,checkoutController.verifyPayment)
+router.post('/validateCoupon',userAuth,checkoutController.validateCoupon)
+router.get('/wishlist',userAuth,userController.getWishlistItems) 
+router.post('/wishlistAdd/:id',userAuth,userController.addBooksWishlist)    
+router.post('/wishlist/remove/:id',userAuth, userController.removeWishlist)
+router.post('/addtocart/wishlist',userAuth, cartController.addToCartFromWishlist)
+router.get('/wallet',userAuth, userController.getWallet)
+router.post('/orders/return/:orderId',userAuth, checkoutController.returnOrderRequest); // User return request
+router.get('/orders/:orderId/invoice',userAuth,checkoutController.getInvoice)
+router.put('/update-order-status/:orderId',userAuth,checkoutController.updateOrderStatus)
+router.get('/order-details/:orderId',userAuth,checkoutController.retryPayment)
+router.get('/contact',userAuth, userController.contactPage)
+router.get('/about',userAuth, userController.aboutPage)
 router.post('/cart/addProducts/:productId', userAuth, cartController.addToCart); 
+router.post('/addresses/default/:id',userAuth, checkoutController.setDefaultAddress);
+
 
 module.exports = router;

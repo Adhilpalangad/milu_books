@@ -769,16 +769,45 @@ const removeWishlist = async (req, res) => {
 
 
 const getWallet = async (req, res) => {
-
     try {
         console.log(req.session);
         
         const userId = req.session.user.id;
-        const wallet = await Wallet.findOne({ userId })
+        const page = parseInt(req.query.page) || 1;
+        const limit = 10; // Number of transactions per page
+        const skip = (page - 1) * limit;
+
+        const wallet = await Wallet.findOne({ userId });
         if (!wallet) {
-            return res.render('user/wallet', { wallet: null, message: 'Wallet not found' });
+            return res.render('user/wallet', { 
+                wallet: null, 
+                message: 'Wallet not found',
+                currentPage: 1,
+                totalPages: 1
+            });
         }
-        res.render('user/wallet', { wallet });
+
+        // Get total count of transactions for pagination
+        const totalTransactions = wallet.transactions.length;
+        const totalPages = Math.ceil(totalTransactions / limit);
+
+        // Slice the transactions array for pagination
+        const paginatedTransactions = wallet.transactions
+            .sort((a, b) => new Date(b.date) - new Date(a.date)) // Sort by date descending
+            .slice(skip, skip + limit);
+
+        // Create a new wallet object with paginated transactions
+        const paginatedWallet = {
+            ...wallet.toObject(),
+            transactions: paginatedTransactions
+        };
+
+        res.render('user/wallet', { 
+            wallet: paginatedWallet,
+            currentPage: page,
+            totalPages,
+            totalTransactions
+        });
     } catch (error) {
         console.error(error);
         res.status(500).send('Server error');

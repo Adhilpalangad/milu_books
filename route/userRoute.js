@@ -6,11 +6,16 @@ const cartController = require('../controller/cartController')
 const checkoutController = require('../controller/checkoutController')
 const userAuth = require("../middileware/user/userAuth");
 const userAuthed = require("../middileware/user/userAuthed")
-
+const nocache = (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+  };
 
 router.get('/',userAuthed,userController.getLand)
-router.get('/signup', userAuthed, userController.renderSignupPage);
-router.get('/login', userController.renderLoginPage);
+router.get('/signup',nocache, userAuthed, userController.renderSignupPage);
+router.get('/login',nocache, userController.renderLoginPage);
 // Google login route
 router.get('/auth/google', passport.authenticate('google', {
     scope: ['profile', 'email'], 
@@ -32,8 +37,8 @@ router.get('/login',userAuthed, (req, res) => {
 router.get('/home',userAuth,userController.getHome)
 router.get('/products',userAuth, userController.getProducts);
 router.get('/product-detail/:id',userAuth, userController.getProductDetail);
-router.post('/signup', userController.userSignup);
-router.post('/login', userController.userLogin);
+router.post('/signup',userAuthed, userController.userSignup);
+router.post('/login',nocache,userAuthed, userController.userLogin);
 router.post('/logout', userController.logout);
 router.post('/verify-otp',userAuthed, userController.verifyOtp);
 router.get('/verify-otp',userAuthed,userController.verifyOtpPage)      

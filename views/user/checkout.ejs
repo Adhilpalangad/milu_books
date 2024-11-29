@@ -628,19 +628,16 @@ async function applyCoupon() {
 
     const data = await response.json();
     if (response.ok && data.total !== undefined) {
-        discountedTotal = Math.round(data.total * 100); // Convert to integer for Razorpay (e.g., ₹100 -> 10000 paise)
-        let shippingFee = discountedTotal < 2500 ? 500 : 0; // Adjust for smallest currency unit
-        discountedTotal += shippingFee;
-
+        discountedTotal = data.total * 100; // Convert to paise
         document.getElementById('totalAmount').innerText = `₹${(discountedTotal / 100).toFixed(2)}`;
-        document.getElementById('discountAmount').innerText = `- ₹${((subtotal * 100 - discountedTotal) / 100).toFixed(2)}`;
+        document.getElementById('discountAmount').innerText = `- ₹${(data.discount).toFixed(2)}`;
         document.getElementById('couponButton').innerText = "Remove Coupon";
         couponApplied = true;
 
         Swal.fire({
             icon: 'success',
             title: 'Coupon Applied!',
-            text: `Discount applied. New total: ₹${(discountedTotal / 100).toFixed(2)} (Shipping Fee: ₹${(shippingFee / 100).toFixed(2)})`,
+            text: data.message,
             confirmButtonText: 'OK'
         });
     } else {
@@ -651,14 +648,14 @@ async function applyCoupon() {
             confirmButtonText: 'OK'
         });
 
-        document.getElementById('totalAmount').innerText = `₹${(subtotal / 100).toFixed(2)}`;
+        document.getElementById('totalAmount').innerText = `₹${subtotal.toFixed(2)}`;
         document.getElementById('discountAmount').innerText = '- ₹0';
     }
 }
 
 function removeCoupon() {
-    discountedTotal = subtotal * 100; // Reset to original subtotal in smallest currency unit
-    document.getElementById('totalAmount').innerText = `₹${(subtotal).toFixed(2)}`;
+    discountedTotal = subtotal * 100; // Reset to original subtotal
+    document.getElementById('totalAmount').innerText = `₹${subtotal.toFixed(2)}`;
     document.getElementById('discountAmount').innerText = '- ₹0';
     document.getElementById('couponCode').value = '';
     document.getElementById('couponButton').innerText = "Apply Coupon";

@@ -89,7 +89,6 @@ const adminUsers = async (req, res) => {
 const blockUser = async (req, res) => {
     try {
         const { userId } = req.body;  
-        console.log('Attempting to block user with ID:', userId); 
 
         if (!userId) {
             console.error('User ID is missing!'); 
@@ -109,7 +108,6 @@ const blockUser = async (req, res) => {
 const unblockUser = async (req, res) => {
     try {
         const { userId } = req.body; 
-        console.log('Attempting to unblock user with ID:', userId); 
         if (!userId) {
             console.error('User ID is missing!'); 
             return res.status(400).send('User ID is required');
@@ -127,9 +125,7 @@ const unblockUser = async (req, res) => {
 
     // Add books
     const addBooks = async (req, res) => {
-        try {
-            console.log('Form Data:', req.body);
-    
+        try { 
             const { title, author, description, price, stock, categoryId } = req.body;
             const images = req.files;
     
@@ -263,7 +259,6 @@ const unblockUser = async (req, res) => {
 const deleleBook = async (req, res) => {
     try {
         const { bookId } = req.body;
-        console.log('Attempting to delete book with ID:', bookId);
 
         if (!bookId) {
             console.error('Book ID is missing!');
@@ -357,7 +352,6 @@ const getEditCategory = async (req, res) => {
     try {
         const {message, error} = req.query
         const { id } = req.params
-        console.log(id)
         const category = await Category.findById(id);
         
         if (!category) {
@@ -456,7 +450,6 @@ const getOrders = async (req, res) => {
 const updateOrderStatus = async (req, res) => {
     const { orderId } = req.params;
     const { status } = req.body;
-    console.log('status', req.body.status);
     
     try {
         const order = await Order.findById(orderId);
@@ -889,6 +882,7 @@ const approveReturnRequest = async (req, res) => {
     const { orderId } = req.params;
 
     try {
+        // Fetch the order and its populated items
         const order = await Order.findById(orderId).populate('items.productId');
         if (!order) return res.status(404).send('Order not found');
 
@@ -900,26 +894,48 @@ const approveReturnRequest = async (req, res) => {
         order.status = 'returned';
         await order.save();
 
-        // If the reason is 'Product Damage', increase stock
+        // Calculate the original discount percentage based on the initial subtotal
+        const originalSubtotal = order.items.reduce((sum, item) => sum + item.priceAtOrder * item.quantity, 0);
+        const originalDiscount = order.discount || 0;
+        const discountPercentage = originalDiscount / originalSubtotal;
+
+        // Recalculate the new subtotal after return
+        const updatedSubtotal = order.items.reduce((sum, item) => {
+            if (!item.isCancelled) {
+                return sum + item.priceAtOrder * item.quantity;
+            }
+            return sum;
+        }, 0);
+
+        // Calculate the new discount based on the remaining items
+        const updatedDiscount = updatedSubtotal * discountPercentage; // Proportional discount
+
+        // Recalculate the total after return
+        const updatedTotal = Math.max(0, updatedSubtotal + order.shipping - updatedDiscount); // Ensure total is not negative
+
+        // Update the order with new discount and total
+        order.subtotal = updatedSubtotal;
+        order.discount = updatedDiscount;
+        order.total = updatedTotal;
+
+        // If the reason is 'Product Damage', don't update the stock, else increase the stock for the returned items
         if (order.returnReason === 'Damaged') {
             // If the product is damaged, don't update the stock
-            console.log("Product is damaged, not increasing stock.");
         } else {
             // Otherwise, for all other return reasons, increase the stock
             for (const item of order.items) {
                 const productId = item.productId; // This could be populated or just the ObjectId
-        
+
                 // Ensure productId is an ObjectId, if populated access _id directly
                 const productIdToUpdate = productId._id ? productId._id : productId;
-        
+
                 // Update the stock by incrementing the quantity of returned items
                 await Book.findByIdAndUpdate(productIdToUpdate, { $inc: { stock: item.quantity } });
             }
         }
-        
 
-        // Handle wallet credit for paid orders
-      
+        // Handle wallet credit for paid orders (refund)
+        if (order.paymentStatus === 'paid' && order.paymentMethod !== 'cashOnDelivery') {
             let wallet = await Wallet.findOne({ userId: order.userId });
             if (!wallet) wallet = await Wallet.create({ userId: order.userId });
             wallet.balance += order.total;
@@ -930,14 +946,16 @@ const approveReturnRequest = async (req, res) => {
                 message: `${order.total} credited for returned order`
             });
             await wallet.save();
-        
+        }
 
-        res.redirect('/admin/orders'); // Redirect to admin orders after approval
+        // Redirect to admin orders after approval
+        res.redirect('/admin/orders');
     } catch (error) {
         console.error(error);
         res.status(500).send('Server error');
     }
 };
+
 
 const rejectReturnRequest = async (req, res) => {
     const { orderId } = req.params;

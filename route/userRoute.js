@@ -6,13 +6,17 @@ const cartController = require('../controller/cartController')
 const checkoutController = require('../controller/checkoutController')
 const userAuth = require("../middileware/user/userAuth");
 const userAuthed = require("../middileware/user/userAuthed")
+
+
 router.get('/',userAuthed,userController.getLand)
 router.get('/signup', userAuthed, userController.renderSignupPage);
-router.get('/login', userAuthed, userController.renderLoginPage);
+router.get('/login', userController.renderLoginPage);
 // Google login route
 router.get('/auth/google', passport.authenticate('google', {
     scope: ['profile', 'email'], 
 }));
+
+
 
 // Google callback route
 router.get('/auth/google/callback', 

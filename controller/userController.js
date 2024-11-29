@@ -26,17 +26,12 @@ function generateOTP() {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+
 const userSignup = async (req, res) => {
-    console.log(req.body);
-    
-    const { name, email, password, confirmPassword } = req.body;
+    const { name, email, password, confirmPassword, referralCode } = req.body;
 
-    // if ({ name: '', email: '', password: '', confirmPassword: '' }) {
-    //     return res.render('user/signup', { error: 'Fields are required.', message: null });
-    // }
-
-    if (!name && !email && !password && !confirmPassword) {
-        return res.render('user/signup', { error: null, message: null });
+    if (!name || !email || !password || !confirmPassword) {
+        return res.render('user/signup', { error: 'All fields are required.', message: null });
     }
 
     if (!isNaN(name)) {
@@ -55,25 +50,54 @@ const userSignup = async (req, res) => {
     try {
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.render('user/signup', { error: 'User Already Exist', message: null });
+            return res.render('user/signup', { error: 'User already exists.', message: null });
         }
 
-        req.session.tempUser = { name, email, password }; 
-        console.log('Temp user set in session :', req.session.tempUser);
-        
-        const otp = Math.floor(100000 + Math.random() * 900000).toString(); 
+        let referredBy = null;
+
+        // Validate referral code and process referral bonus
+        if (referralCode) {
+            const referrer = await User.findOne({ referralCode });
+            if (!referrer) {
+                return res.render('user/signup', { error: 'Invalid referral code.', message: null });
+            }
+
+            referredBy = referrer._id;
+
+            // Credit ₹100 to the referrer's wallet
+            let wallet = await Wallet.findOne({ userId: referredBy });
+            if (!wallet) {
+                wallet = new Wallet({ userId: referredBy });
+            }
+
+            wallet.balance += 100; // Add referral bonus to the wallet
+            wallet.transactions.push({
+                amount: 100,
+                transactionType: 'credit',
+                message: 'Referral bonus credited for referring a new user.',
+            });
+
+            await wallet.save();
+        }
+
+        // Save temp user in session for OTP verification
+        req.session.tempUser = { name, email, password, referredBy };
+        console.log('Temp user set in session:', req.session.tempUser);
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
         req.session.otp = otp;
-        req.session.otpExpires = new Date(Date.now() + 60 * 1000); 
-        console.log('otp is',otp);
-        
-        await sendOtpToEmail(email, otp); 
-        
-        return res.redirect('/verify-otp'); 
+        req.session.otpExpires = new Date(Date.now() + 60 * 1000);
+        console.log('OTP is', otp);
+
+        await sendOtpToEmail(email, otp);
+
+        return res.redirect('/verify-otp');
     } catch (error) {
         console.error('Error signing up:', error);
         return res.render('user/signup', { error: 'Error signing up. Please try again.', message: null });
     }
 };
+
 
 //verify page
 
@@ -152,7 +176,6 @@ const userLogin = async (req, res) => {
     const { email, password } = req.body;
     try {
         const user = await User.findOne({ email: email, isAdmin: false});
-        console.log("user details is ", user);
         
         if (user.isBlocked == true) {
             return res.render('user/login', { error: 'Your account is blocked', message: null })
@@ -164,7 +187,6 @@ const userLogin = async (req, res) => {
 
         if (user) {
             const isMatch = await bcrypt.compare(password, user.password);
-            console.log(isMatch);
             const product = await Book.find({ isActive: true }).populate('categoryId', 'name');  
 
             if (isMatch) {
@@ -283,7 +305,6 @@ const getLand = async (req, res) => {
     try {
         const product = await Book.find({ isActive: true }).populate('categoryId', 'name');  
         // const categories = await Category.find({ isActive: true });  
-        console.log(product);
         
         res.render('user/landing', { product });
     } catch (error) {
@@ -304,10 +325,8 @@ const getProducts = async (req, res) => {
 
 
         const cart = await Cart.findOne({ userId: userId }, { items: 1 });
-        console.log('cart item is', cart)
         const itemCount = cart ? cart.items.length : 0;
         
-        console.log(`Total number of items in cart: ${itemCount}`);  
                 if (category && category !== 'all') {
             filter.categoryId = category; // Ensure category field matches schema
         }
@@ -409,7 +428,6 @@ const getProducts = async (req, res) => {
 const getProductDetail = async (req, res) => {
     try {
         const productId = req.params.id; 
-        console.log(productId);
         if (!mongoose.isValidObjectId(productId)) {
             return res.status(400).json({ message: "Bad request" });
         }
@@ -618,13 +636,11 @@ const deleteAddress = async (req, res) => {
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
 
-    // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
         return res.render('user/forgotPassword', { error: 'User not found!' });
     }
 
-    // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     req.session.forgotPasswordOtp = otp;
     req.session.otpExpires = new Date(Date.now() + 60 * 1000); // OTP valid for 1 minute
@@ -661,7 +677,6 @@ const resetPassword = async (req, res) => {
         return res.render('user/login', { error: 'Invalid request. Please try again.',message:"" });
     }
 
-    // Update the user's password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await User.findOneAndUpdate({ email }, { password: hashedPassword });
 
@@ -757,13 +772,12 @@ const removeWishlist = async (req, res) => {
     try {
         const productId = req.params.id;
         const userId = req.session.user.id;
-        console.log('user ', userId)
         await Wishlist.findOneAndDelete({ userId, productId });
         
         res.redirect('/wishlist');
     } catch (error) {
         console.error(error);
-        res.redirect('/error'); // Optionally handle error by redirecting to an error page
+        res.redirect('/error'); 
     }
 };
 
@@ -774,7 +788,7 @@ const getWallet = async (req, res) => {
         
         const userId = req.session.user.id;
         const page = parseInt(req.query.page) || 1;
-        const limit = 10; // Number of transactions per page
+        const limit = 10;
         const skip = (page - 1) * limit;
 
         const wallet = await Wallet.findOne({ userId });
@@ -787,11 +801,9 @@ const getWallet = async (req, res) => {
             });
         }
 
-        // Get total count of transactions for pagination
         const totalTransactions = wallet.transactions.length;
         const totalPages = Math.ceil(totalTransactions / limit);
 
-        // Slice the transactions array for pagination
         const paginatedTransactions = wallet.transactions
             .sort((a, b) => new Date(b.date) - new Date(a.date)) // Sort by date descending
             .slice(skip, skip + limit);

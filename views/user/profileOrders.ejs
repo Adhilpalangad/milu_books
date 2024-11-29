@@ -11,8 +11,7 @@
 <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-lg p-4 my-6">
     <!-- Order Items Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <% order.items.filter(item => !item.isCancelled).forEach(item => { %>
-            <div class="bg-gray-50 rounded-lg transition duration-300 hover:bg-gray-100 hover:shadow-md">
+        <% order.items.forEach(item => { %>            <div class="bg-gray-50 rounded-lg transition duration-300 hover:bg-gray-100 hover:shadow-md">
                 <div class="flex p-3 space-x-3">
                     <!-- Product image -->
                     <div class="w-20 h-20 flex-shrink-0">
@@ -255,72 +254,217 @@
                     <!-- Button to View Order Details in Modal -->
                     <button data-toggle="modal" data-target="#orderModal<%= order._id %>" class="text-blue-600 hover:text-blue-800">View Order Details</button>
                     
-                    <!-- Modal for Order Details -->
-                    <!-- Modal Structure -->
-                    <!-- Modal to show order details -->
-<div class="modal fade" id="orderModal<%= order._id %>" tabindex="-1" role="dialog" aria-labelledby="orderModalLabel<%= order._id %>" aria-hidden="true">
-    <div class="modal-dialog modal-lg custom-centered-modal" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="orderModalLabel<%= order._id %>">Order Details: <%= order.OrderId %></h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p><strong>Order Date:</strong> <%= order.createdAt.toLocaleDateString() %></p>
-                <p><strong>Status:</strong> <%= order.status %></p>
-                <p><strong>Payment Method:</strong> <%= order.paymentMethod %></p>
-                <p><strong>Total Amount:</strong> ₹<%= order.total.toFixed(2) %></p>
-                
-                <h5>Delivery Address:</h5>
-                <p><strong>Full Name:</strong> <%= order.address.fullName %></p>
-                <p><strong>Street:</strong> <%= order.address.street %></p>
-                <p><strong>City:</strong> <%= order.address.city %></p>
-                <p><strong>State:</strong> <%= order.address.state %></p>
-                <p><strong>Country:</strong> <%= order.address.country %></p>
-                <p><strong>Postal Code:</strong> <%= order.address.postalCode %></p>
-                
-                <h5>Items:</h5>
-<table class="table table-sm">
-    <tbody>
-        <% order.items.forEach(function(item) { %>
-            <tr>
-                <td class="align-middle">
-                    <%= item.productId.title %> 
-                    <% if (item.isCancelled) { %>
-                        <span class="badge badge-danger">Canceled</span>
-                    <% } %>
-                </td>
-                <td class="text-right align-middle">
-                    ₹<%= (item.isCancelled ? 0 : item.productId.price) * item.quantity %>
-                </td>
-                <% if (order.status === 'pending' || order.status === 'paid') { %>
-                    <td class="text-center align-middle">
-                        <button class="btn btn-danger btn-sm" onclick="cancelOrderItem('<%= order._id %>', '<%= item.productId._id %>')">
-                            Cancel
-                        </button>
-                    </td>
-                <% } %>
-            </tr>
-        <% }) %>
-    </tbody>
-</table>
-
-
-
-                <!-- Download Invoice Button -->
-                <% if (order.status === 'delivered') { %>
-                    <a href="/orders/<%= order._id %>/invoice" class="btn btn-primary mt-3" download>Download Invoice</a>
-                <% } %>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
-
+                    
+                    <div class="modal fade" id="orderModal<%= order._id %>" tabindex="-1" role="dialog" aria-labelledby="orderModalLabel<%= order._id %>" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                            <div class="modal-content shadow-lg">
+                                <div class="modal-header bg-light border-bottom-0 pb-0">
+                                    <div class="d-flex align-items-center w-100">
+                                        <div class="flex-grow-1">
+                                            <h4 class="modal-title font-weight-bold text-dark" id="orderModalLabel<%= order._id %>">
+                                            </h4>
+                                            <small class="text-muted">
+                                                Placed on <%= order.createdAt.toLocaleDateString('en-US', { 
+                                                    year: 'numeric', 
+                                                    month: 'long', 
+                                                    day: 'numeric' 
+                                                }) %>
+                                            </small>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                
+                                <div class="modal-body pt-2">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <div class="card border-0">
+                                                <div class="card-body p-0">
+                                                    <div class="row mb-3">
+                                                        <div class="col-md-6">
+                                                            <h6 class="text-muted mb-2">Order Status</h6>
+                                                            <% 
+                                                            let statusBadgeClass = 'badge-secondary';
+                                                            switch(order.status) {
+                                                                case 'pending': 
+                                                                    statusBadgeClass = 'badge-warning'; 
+                                                                    break;
+                                                                case 'paid': 
+                                                                    statusBadgeClass = 'badge-info'; 
+                                                                    break;
+                                                                case 'delivered': 
+                                                                    statusBadgeClass = 'badge-success'; 
+                                                                    break;
+                                                                case 'cancelled': 
+                                                                    statusBadgeClass = 'badge-danger'; 
+                                                                    break;
+                                                            }
+                                                            %>
+                                                            <span class="badge <%= statusBadgeClass %> p-2 text-uppercase">
+                                                                <%= order.status %>
+                                                            </span>
+                                                        </div>
+                                                        <div class="col-md-6 text-right">
+                                                            <h6 class="text-muted mb-2">Payment Method</h6>
+                                                            <p class="font-weight-bold">
+                                                                <%= order.paymentMethod || 'Not Specified' %>
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                    
+                                                    <h5 class="mb-3">Order Items</h5>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-borderless">
+                                                            <tbody>
+                                                                <% 
+                                                                let subtotal = 0;
+                                                                let totalDiscount = 0;
+                                                                order.items.forEach(function(item) { 
+                                                                    const itemPrice = item.productId.price * item.quantity;
+                                                                    const itemDiscount = item.discount || 0;
+                                                                    const discountAmount = itemPrice * (itemDiscount / 100);
+                                                                    
+                                                                    subtotal += itemPrice;
+                                                                    totalDiscount += discountAmount;
+                                                                %>
+                                                                    <tr class="border-bottom">
+                                                                        <td class="align-middle p-2">
+                                                                            <img 
+                                                                                src="/<%= item.productId.images[0] %>" 
+                                                                                alt="<%= item.productId.title %>" 
+                                                                                class="img-thumbnail mr-3" 
+                                                                                style="width: 80px; height: 80px; object-fit: cover;"
+                                                                            >
+                                                                        </td>
+                                                                        <td class="align-middle p-2">
+                                                                            <h6 class="mb-1">
+                                                                                <%= item.titleAtOrder %>
+                                                                                <% if (item.isCancelled) { %>
+                                                                                    <span class="badge badge-danger ml-2">Canceled</span>
+                                                                                <% } %>
+                                                                            </h6>
+                                                                            <small class="text-muted">
+                                                                                Qty: <%= item.quantity %> | 
+                                                                                Price: ₹<%= item.priceAtOrder ? item.priceAtOrder.toFixed(2) : '0.00' %>
+                                                                            </small>
+                                                                        </td>
+                                                                        
+                                                                        <td class="align-middle text-right p-2">
+                                                                            <% if (order.discount && order.discount > 0) { %>
+                                                                                <div class="text-success">
+                                                                                    
+                                                                                </div>
+                                                                            <% } %>
+                                                                            <strong>
+                                                                                ₹<%= (item.isCancelled ? 0 : (item.priceAtOrder - discountAmount || 0)).toFixed(2) %>
+                                                                            </strong>
+                                                                        </td>
+                                                                        
+                                                                        <% if ((order.status === 'pending' || order.status === 'paid') && !item.isCancelled) { %>
+                                                                            <td class="align-middle text-center p-2">
+                                                                                <button 
+                                                                                    class="btn btn-danger btn-sm" 
+                                                                                    onclick="cancelOrderItem('<%= order._id %>', '<%= item.productId._id %>')"
+                                                                                >
+                                                                                    Cancel
+                                                                                </button>
+                                                                            </td>
+                                                                        <% } else if (!item.isCancelled) { %>
+                                                                            <!-- If item is cancelled, don't display the Cancel button at all -->
+                                                                            <td class="align-middle text-center p-2">
+                                                                                <button 
+                                                                                    class="btn btn-secondary btn-sm" 
+                                                                                    disabled
+                                                                                >
+                                                                                    Cancel
+                                                                                </button>
+                                                                            </td>
+                                                                        <% } %>
+                                                                                                                                          
+                                                                    </tr>
+                                                                <% }) %>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                    
+                                                    <div class="row mt-3">
+                                                        <div class="col-md-6">
+                                                            <h6 class="text-muted">Delivery Address</h6>
+                                                            <p class="mb-1">
+                                                                <strong><%= order.address.fullName %></strong><br>
+                                                                <%= order.address.street %><br>
+                                                                <%= order.address.city %>, <%= order.address.state %> <%= order.address.postalCode %><br>
+                                                                <%= order.address.country %>
+                                                            </p>
+                                                        </div>
+                                                        <div class="col-md-6 text-right">
+                                                            <h6 class="text-muted">Order Summary</h6>
+                                                        
+                                                            <p class="mb-1">
+                                                                Subtotal: <strong>₹<%= order.subtotal.toFixed(2) %></strong>
+                                                            </p>
+                                                            <p class="text-success mb-1">
+                                                                Discount: <strong>₹<%= order.discount.toFixed(2) %></strong>
+                                                            </p>
+                                                            <h5 class="font-weight-bold text-primary">
+                                                                Total: ₹<%= order.total.toFixed(2) %>
+                                                            </h5>
+                                                        </div>
+                                                        
+                                                        
+                                                        
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-4">
+                                            <div class="card bg-light border-0">
+                                                <div class="card-body">
+                                                    <h6 class="text-muted mb-3">Order Tracking</h6>
+                                                    <ul class="list-unstyled">
+                                                        <% 
+                                                        const trackingStages = [
+                                                            { stage: 'Order Placed', active: true },
+                                                            { stage: 'Payment Confirmed', active: ['paid', 'shipped', 'delivered'].includes(order.status) },
+                                                            { stage: 'Processing', active: ['shipped', 'delivered'].includes(order.status) },
+                                                            { stage: 'Shipped', active: ['shipped', 'delivered'].includes(order.status) },
+                                                            { stage: 'Delivered', active: order.status === 'delivered' }
+                                                        ];
+                                                        
+                                                        trackingStages.forEach((stage, index) => { %>
+                                                            <li class="mb-2 d-flex align-items-center">
+                                                                <span 
+                                                                    class="mr-2 rounded-circle <%= stage.active ? 'bg-success' : 'bg-secondary' %>" 
+                                                                    style="width: 12px; height: 12px;"
+                                                                ></span>
+                                                                <%= stage.stage %>
+                                                            </li>
+                                                        <% }) %>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="modal-footer bg-light border-top-0">
+                                    <% if (order.status === 'delivered') { %>
+                                        <a 
+                                            href="/orders/<%= order._id %>/invoice" 
+                                            class="btn btn-outline-primary mr-auto" 
+                                            download
+                                        >
+                                            <i class="fas fa-file-invoice mr-2"></i>Download Invoice
+                                        </a>
+                                    <% } %>
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 <script>
     function cancelOrderItem(orderId, productId) {
     // Show SweetAlert confirmation dialog

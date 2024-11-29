@@ -45,65 +45,81 @@ const processCheckout = async (req, res) => {
             validFrom: { $lte: currentDate },
             validUntil: { $gte: currentDate }
         });
-        
+
         // Calculate subtotal, check product stock, and apply offer discounts
         for (let item of cart.items) {
             const product = item.productId;
-        
+
             if (!product) {
                 return res.status(400).send(`Product not found for ID: ${item.productId}`);
             }
             if (product.stock < item.quantity) {
                 return res.status(400).send(`Not enough stock for ${product.title}`);
             }
-        
+
             // Accumulate subtotal
             subtotal += product.price * item.quantity;
-        
+
             // Check for applicable offers
             for (let offer of offers) {
                 const applicableProducts = offer.applicableProducts.map(id => id.toString());
                 const applicableCategories = offer.applicableCategories.map(id => id.toString());
-                
-                
-        
-                // Check if the product is eligible for the offer (either by product ID or category)
+
+                // Check if the product is eligible for the offer (by product ID or category)
                 if (
                     applicableProducts.includes(product._id.toString()) || 
-                    applicableCategories.includes(product.categoryId.toString())  // Ensure comparison is done with string
+                    applicableCategories.includes(product.categoryId.toString())
                 ) {
                     // Calculate the discount for this item
                     offerDiscount += (product.price * item.quantity * offer.discount) / 100;
                 }
             }
-        
+
             itemsToProcess.push({
                 productId: product._id,
-                quantity: item.quantity
+                quantity: item.quantity,
+                isCancelled: false, // Default value for isCancelled
+                titleAtOrder: product.title, // Snapshot of product title
+                priceAtOrder: product.price // Snapshot of product price
             });
-        
-            // Reduce stock
-            product.stock -= item.quantity;
+
+            // Reduce stock for specific payment methods
+            if (req.body.paymentMethod === 'cashOnDelivery' || req.body.paymentMethod === 'wallet') {
+                product.stock -= item.quantity;
+            }
             await product.save();
         }
-        
-        
+
         // Apply coupon logic (if any)
-        let couponDiscount = 0;
-        if (req.body.couponCode) {
-            const coupon = await Coupon.findOne({ code: req.body.couponCode, isActive: true });
-            if (coupon && currentDate >= coupon.validFrom && currentDate <= coupon.validUntil && subtotal >= coupon.minOrderValue) {
-                couponDiscount = (subtotal * coupon.discount) / 100;
-            } else {
-                return res.status(400).send('Invalid or expired coupon');
-            }
+        let couponDiscount = 0; // Initialize couponDiscount
+
+if (req.body.couponCode) {
+    const coupon = await Coupon.findOne({ code: req.body.couponCode, isActive: true });
+
+    if (coupon && currentDate >= coupon.validFrom && currentDate <= coupon.validUntil && subtotal >= coupon.minOrderValue) {
+        // Calculate the coupon discount based on percentage
+        couponDiscount = (subtotal * coupon.discount) / 100;
+
+        // Apply max discount limit if it exists
+        if (coupon.maxDiscountLimit && couponDiscount > coupon.maxDiscountLimit) {
+            couponDiscount = coupon.maxDiscountLimit;
         }
 
+        // Cap the discount if it exceeds 50% of the subtotal
+        if (couponDiscount > subtotal / 2) {
+            couponDiscount = subtotal / 2;
+        }
+    }
+}
+
+        
         // Calculate final totals after discounts
         const totalDiscount = offerDiscount + couponDiscount;
         const shippingCost = subtotal > 25 ? 0 : 5;
         const total = subtotal - totalDiscount + shippingCost;
+        
 
+        // Deduct from wallet if applicable
         if (req.body.paymentMethod === 'wallet') {
             const wallet = await Wallet.findOne({ userId });
             if (!wallet || wallet.balance < total) {
@@ -141,8 +157,8 @@ const processCheckout = async (req, res) => {
             });
             await address.save();
         }
-        console.log('getted paymemt from bdoy',req.body.paymentMethod)
-        // Create a new order in the database first
+
+        // Create a new order in the database
         const newOrder = new Order({
             userId,
             items: itemsToProcess,
@@ -162,11 +178,10 @@ const processCheckout = async (req, res) => {
             status: 'pending',
             paymentStatus: req.body.paymentMethod === 'razorpay' ? 'failed' : 'pending' // Set initial payment status
         });
-        
 
         await newOrder.save();
 
-        // Create a Razorpay order with the newOrder ID
+        // Create a Razorpay order if applicable
         const razorpayOrderOptions = {
             amount: total * 100, // Amount is in paise
             currency: 'INR',
@@ -195,6 +210,7 @@ const processCheckout = async (req, res) => {
     }
 };
 
+
 const walletBalance = async (req, res) => {
     try {
         const userId = req.session.user.id;
@@ -212,11 +228,11 @@ const walletBalance = async (req, res) => {
 
 }
 
-const validateCoupon = async (req, res) => { 
+const validateCoupon = async (req, res) => {
     const { couponCode, subtotal } = req.body;
     try {
         const coupon = await Coupon.findOne({ code: couponCode, isActive: true });
-        
+
         if (!coupon) {
             return res.status(400).json({ message: 'Invalid or expired coupon' });
         }
@@ -231,8 +247,24 @@ const validateCoupon = async (req, res) => {
         }
 
         // Calculate discount
-        const discount = (subtotal * coupon.discount) / 100;
+        let discount = (subtotal * coupon.discount) / 100;
+
+        // Apply max discount limit
+        if (coupon.maxDiscountLimit && discount > coupon.maxDiscountLimit) {
+            discount = coupon.maxDiscountLimit;
+        }
+
         const total = subtotal - discount;
+
+        // If the discount is more than half of the subtotal, cap it at 50%
+        if (total < subtotal / 2) {
+            discount = subtotal / 2;
+            return res.json({ 
+                total: subtotal / 2, 
+                discount: subtotal / 2, 
+                message: 'Coupon applied successfully with a 50% limit.' 
+            });
+        }
 
         res.json({ total, discount, message: 'Coupon applied successfully' });
     } catch (error) {
@@ -247,33 +279,52 @@ const validateCoupon = async (req, res) => {
 const verifyPayment = async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
+    // Verify the payment signature
     const generatedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
         .update(razorpay_order_id + '|' + razorpay_payment_id)
         .digest('hex');
 
     if (generatedSignature === razorpay_signature) {
         try {
+            // Find the order using the Razorpay order ID
             const order = await Order.findOne({ razorpayOrderId: razorpay_order_id });
             if (!order) {
                 return res.status(404).send('Order not found');
             }
 
-            // Update the order status to 'paid'
-            order.status = 'paid';
-            order.razorpayPaymentId = razorpay_payment_id;
-            order.razorpaySignature = razorpay_signature;
-            order.paymentStatus = 'paid';
-            await order.save();
+            // Update the order status to 'paid' after successful payment verification
+            order.status = 'paid';  // Mark order as paid
+            order.razorpayPaymentId = razorpay_payment_id;  // Store the Razorpay payment ID
+            order.razorpaySignature = razorpay_signature;  // Store the Razorpay signature
+            order.paymentStatus = 'paid';  // Set the payment status to 'paid'
+            await order.save();  // Save the updated order
 
-            return res.json({ orderId: order.OrderId });
+            // Deduct stock from the products in the order
+            for (let item of order.items) {
+                const product = await Book.findById(item.productId);
+                if (product) {
+                    // Reduce stock by the quantity purchased
+                    product.stock -= item.quantity;
+                    await product.save();  // Save the updated product
+                }
+            }
+
+            // Respond with the updated order information
+            return res.json({
+                message: 'Payment verified successfully, order is now paid.',
+                orderId: order._id,
+                status: order.status
+            });
         } catch (error) {
             console.error('Error updating order status:', error);
             return res.status(500).send('Internal server error');
         }
     } else {
+        // If the payment signature does not match, return an error
         return res.status(400).send('Payment verification failed');
     }
 };
+
 
 const updateOrderStatus = async (req, res) => {
     const { status } = req.query;
@@ -349,23 +400,36 @@ const getOrders = async (req, res) => {
         itemToCancel.isCancelled = true;
         itemToCancel.cancelledAt = new Date(); // Mark the cancellation timestamp
 
-        // Update stock for the canceled product (if needed)
+        // Update stock for the canceled product
         await Book.findByIdAndUpdate(productId, {
             $inc: { stock: itemToCancel.quantity }
         });
 
-        // Recalculate order totals, excluding canceled items
+        // Calculate the original discount percentage based on the initial subtotal
+        const originalSubtotal = order.items.reduce((sum, item) => sum + item.priceAtOrder * item.quantity, 0);
+        const originalDiscount = order.discount || 0;
+        const discountPercentage = originalDiscount / originalSubtotal;
+
+        // Recalculate the new subtotal after cancellation
         const updatedSubtotal = order.items.reduce((sum, item) => {
             if (!item.isCancelled) {
-                return sum + item.productId.price * item.quantity;
+                return sum + item.priceAtOrder * item.quantity; // Use priceAtOrder for calculations
             }
             return sum;
         }, 0);
-        
-        order.subtotal = updatedSubtotal;
-        order.total = updatedSubtotal + order.shipping - order.discount;
 
-        // If no items remain, update order status to canceled
+        // Calculate the new discount based on the remaining items
+        const updatedDiscount = updatedSubtotal * discountPercentage; // Proportional discount
+
+        // Recalculate the total
+        const updatedTotal = Math.max(0, updatedSubtotal + order.shipping - updatedDiscount); // Ensure total is not negative
+
+        // Update the order object
+        order.subtotal = updatedSubtotal;
+        order.discount = updatedDiscount; // Updated discount
+        order.total = updatedTotal; // Updated total
+
+        // If all items are canceled, update order status to canceled
         if (order.items.every(item => item.isCancelled)) {
             order.status = 'cancelled';
             order.cancelledAt = new Date();
@@ -375,7 +439,8 @@ const getOrders = async (req, res) => {
 
         // Wallet operations for non-COD payments
         if (order.paymentMethod !== 'cashOnDelivery') {
-            const refundAmount = itemToCancel.productId.price * itemToCancel.quantity;
+            const itemDiscount = (itemToCancel.priceAtOrder * itemToCancel.quantity / originalSubtotal) * originalDiscount;
+            const refundAmount = itemToCancel.priceAtOrder * itemToCancel.quantity - itemDiscount;
 
             let wallet = await Wallet.findOne({ userId: order.userId });
             if (!wallet) {
@@ -387,7 +452,7 @@ const getOrders = async (req, res) => {
                 amount: refundAmount,
                 transactionType: 'credit',
                 orderId: orderId,
-                message: `Refund for canceled product: ${itemToCancel.productId.title}`
+                message: `Refund for canceled product: ${itemToCancel.titleAtOrder}`
             });
 
             await wallet.save();

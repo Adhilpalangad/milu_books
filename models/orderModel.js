@@ -9,6 +9,8 @@ const orderSchema = new mongoose.Schema({
             quantity: { type: Number, required: true },
             isCancelled: { type: Boolean, default: false }, // New field to track canceled status
             cancelledAt: { type: Date }, // Optional: Timestamp when canceled
+            titleAtOrder: { type: String, required: true }, // Snapshot of product title
+            priceAtOrder: { type: Number, required: true } // Snapshot of product price
         }
     ],
     address: {
@@ -24,14 +26,14 @@ const orderSchema = new mongoose.Schema({
     discount: { type: Number, default: 0 },  // New field for combined offer and coupon discounts
     shipping: { type: Number, required: true },
     total: { type: Number, required: true },
-    status: { type: String, enum: ['failed', 'shipped', 'delivered', 'cancelled', 'paid','returned','pending'], default: 'pending' },
+    status: { type: String, enum: ['failed', 'shipped', 'delivered', 'cancelled', 'paid', 'returned', 'pending'], default: 'pending' },
     cancelledAt: { type: Date },
     deliveredAt: { type: Date },
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
     razorpaySignature: { type: String },
     returnReason: { type: String }, 
-    returnStatus: { type: String, enum: ['pending', 'approved', 'rejected','requested'], default: 'pending' }, // Return status
+    returnStatus: { type: String, enum: ['pending', 'approved', 'rejected', 'requested'], default: 'pending' }, // Return status
     returnedAt: { type: Date }, // Date when return was approved
     paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' }
 }, { timestamps: true });

@@ -116,13 +116,15 @@
                                                                     <ul>
                                                                         <% order.items.forEach(function(item) { %>
                                                                             <li>
-                                                                                <%= item.productId.title %> x <%= item.quantity %> - ₹<%= item.productId.price.toFixed(2) %>
+                                                                                <%= item.titleAtOrder %> x <%= item.quantity %> - ₹<%= item.priceAtOrder ? item.priceAtOrder.toFixed(2) : 'N/A' %> 
                                                                                 <% if (item.isCancelled) { %>
                                                                                     <span class="badge badge-danger">Canceled</span>
                                                                                 <% } %>
                                                                             </li>
                                                                         <% }) %>
+                                                                        
                                                                     </ul>
+                                                                    
                                                                 </div>
                                                                 <div class="modal-footer">
                                                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>

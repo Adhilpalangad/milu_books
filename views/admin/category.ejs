@@ -54,16 +54,15 @@
 
                             
 <div class="table-responsive">
-    <table class="table">
+    <table class="table" id="categoriesTable">
         <thead>
-            
             <tr>
                 <th>Category Id</th>
                 <th>Category Name</th>
                 <th>Action</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="categoriesTableBody">
             <% categories.forEach((category, index) => { %>
                 <% if (category.isActive) { %> <!-- Only render if isActive is true -->
                     <tr>
@@ -80,39 +79,103 @@
                 <% } %>
             <% }) %>
         </tbody>
-        
-        <!-- SweetAlert2 -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-        
-        <script>
-        function confirmDeleteCategory(event, form) {
-            event.preventDefault(); // Prevent immediate form submission
-        
-            // Show SweetAlert confirmation dialog
-            Swal.fire({
-                title: 'Are you sure you want to delete this category?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!',
-                cancelButtonText: 'No, cancel',
-                background: '#2f2f2f',  // Black theme background
-                color: '#fff'           // Text color white
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Submit the form if confirmed
-                    form.submit();
-                }
-            });
-        
-            return false;  // Always prevent default form submission
-        }
-        </script>
-        
     </table>
 </div>
+
+<!-- Pagination Controls -->
+<div id="paginationControls" class="mt-3 d-flex justify-content-center"></div>
+
+<!-- SweetAlert2 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tableBody = document.getElementById('categoriesTableBody');
+        const paginationControls = document.getElementById('paginationControls');
+        const rows = Array.from(tableBody.getElementsByTagName('tr'));
+        const rowsPerPage = 5; // Number of rows per page
+        let currentPage = 1;
+
+        function renderTable(page) {
+            const start = (page - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            tableBody.innerHTML = '';
+
+            rows.slice(start, end).forEach(row => {
+                tableBody.appendChild(row);
+            });
+
+            renderPaginationControls();
+        }
+
+        function renderPaginationControls() {
+            const totalPages = Math.ceil(rows.length / rowsPerPage);
+            paginationControls.innerHTML = '';
+
+            for (let i = 1; i <= totalPages; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.innerText = i;
+                pageButton.className = 'btn btn-secondary mx-1';
+                if (i === currentPage) pageButton.classList.add('btn-primary');
+                pageButton.addEventListener('click', () => {
+                    currentPage = i;
+                    renderTable(currentPage);
+                });
+                paginationControls.appendChild(pageButton);
+            }
+
+            if (currentPage > 1) {
+                const prevButton = document.createElement('button');
+                prevButton.innerText = 'Previous';
+                prevButton.className = 'btn btn-secondary mx-1';
+                prevButton.addEventListener('click', () => {
+                    currentPage--;
+                    renderTable(currentPage);
+                });
+                paginationControls.insertBefore(prevButton, paginationControls.firstChild);
+            }
+
+            if (currentPage < totalPages) {
+                const nextButton = document.createElement('button');
+                nextButton.innerText = 'Next';
+                nextButton.className = 'btn btn-secondary mx-1';
+                nextButton.addEventListener('click', () => {
+                    currentPage++;
+                    renderTable(currentPage);
+                });
+                paginationControls.appendChild(nextButton);
+            }
+        }
+
+        // Initial Render
+        renderTable(currentPage);
+    });
+
+    function confirmDeleteCategory(event, form) {
+        event.preventDefault(); // Prevent immediate form submission
+    
+        // Show SweetAlert confirmation dialog
+        Swal.fire({
+            title: 'Are you sure you want to delete this category?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'No, cancel',
+            background: '#2f2f2f',  // Black theme background
+            color: '#fff'           // Text color white
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Submit the form if confirmed
+                form.submit();
+            }
+        });
+    
+        return false;  // Always prevent default form submission
+    }
+</script>
 
 
                                             </div>

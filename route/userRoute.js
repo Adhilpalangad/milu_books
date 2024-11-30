@@ -14,8 +14,8 @@ const nocache = (req, res, next) => {
   };
 
 router.get('/',userAuthed,userController.getLand)
-router.get('/signup',nocache, userAuthed, userController.renderSignupPage);
-router.get('/login',nocache, userController.renderLoginPage);
+router.get('/signup', userController.renderSignupPage);
+router.get('/login', userAuthed, userController.renderLoginPage);
 // Google login route
 router.get('/auth/google', passport.authenticate('google', {
     scope: ['profile', 'email'], 
@@ -31,14 +31,12 @@ router.get('/auth/google/callback',
     userController.googleLogin // Redirect to user controller after authentication
 );
 
-router.get('/login',userAuthed, (req, res) => {
-    res.render('user/login',{ error:"",message:""});
-    });   
+  
 router.get('/home',userAuth,userController.getHome)
 router.get('/products',userAuth, userController.getProducts);
 router.get('/product-detail/:id',userAuth, userController.getProductDetail);
-router.post('/signup',userAuthed, userController.userSignup);
-router.post('/login',nocache,userAuthed, userController.userLogin);
+router.post('/signup', userController.userSignup);
+router.post('/login', userAuthed, userController.userLogin);
 router.post('/logout', userController.logout);
 router.post('/verify-otp',userAuthed, userController.verifyOtp);
 router.get('/verify-otp',userAuthed,userController.verifyOtpPage)      

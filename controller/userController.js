@@ -174,46 +174,46 @@ const resendOtp = async (req, res) => {
 
 const userLogin = async (req, res) => {
     const { email, password } = req.body;
+
     try {
-        const user = await User.findOne({ email: email, isAdmin: false});
-        
-        if (user.isBlocked == true) {
-            return res.render('user/login', { error: 'Your account is blocked', message: null })
+        // Check if the user exists
+        const user = await User.findOne({ email: email, isAdmin: false });
+
+        if (!user) {
+            // User not found
+            return res.render('user/login', { error: 'Invalid email or password.', message: "" });
         }
 
-        if (user == null) {
-            return res.render('user/login',{error:'Fileds are required',message:""})
+        // Check if the user is blocked
+        if (user.isBlocked) {
+            return res.render('user/login', { error: 'Your account is blocked.', message: null });
         }
 
-        if (user) {
-            const isMatch = await bcrypt.compare(password, user.password);
-            const product = await Book.find({ isActive: true }).populate('categoryId', 'name');  
+        // Validate password
+        const isMatch = await bcrypt.compare(password, user.password);
 
-            if (isMatch) {
-                req.session.user = {
-                    id: user._id,
-                    email: user.email,
-                    
-                };
-
-                
-                if (user.id) {
-                
-                   
-                    return res.redirect('/home'); 
-                
-                } else {
-                    return res.render('user/login', { error: "Invalid password.",message:"" })
-                }
-            } else {
-                return res.render('user/login', { error: 'Invalid email or password.',message:"" });
-            }
+        if (!isMatch) {
+            // Password does not match
+            return res.render('user/login', { error: 'Invalid email or password.', message: "" });
         }
+
+        // Set user session
+        req.session.user = {
+            id: user._id,
+            email: user.email,
+        };
+
+        // Redirect to home
+        return res.redirect('/home');
+
     } catch (error) {
-        console.error(error); 
-        return res.render('user/login', { error: 'An error occurred. Please try again.',message:"" });
+        console.error("Login Error:", error);
+
+        // Handle unexpected errors
+        return res.render('user/login', { error: 'An error occurred. Please try again.', message: "" });
     }
-}
+};
+
 
 //google login
 

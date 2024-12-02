@@ -3,7 +3,17 @@
 
 	<!-- Cart -->
 
-
+	<% if (errorMessage) { %>
+		<script>
+			Swal.fire({
+				icon: 'error',
+				title: 'Oops...',
+				text: '<%= errorMessage %>',
+				confirmButtonText: 'Okay',
+			});
+		</script>
+	<% } %>
+	
 
 	<!-- breadcrumb -->
 	<div class="container" style="margin-top: 70px;">
@@ -35,41 +45,42 @@
 						</tr>
 	
 						<% let subtotal = 0; %>
-						<% if (items.length > 0) { %>
-							<% items.forEach((item) => { %>
-								<% subtotal += item.price * item.quantity; %>
-								<tr class="table_row" id="product-row-<%= item.productId._id %>">
-									<td class="column-1">
-										<div class="how-itemcart1">
-											<img src="<%= item.imageUrl %>" alt="<%= item.name %>">
-										</div>
-									</td>
-									<td class="column-2"><%= item.name %></td>
-									<td class="column-3" id="price-<%= item.productId._id %>"><%= item.price.toFixed(2) %></td>
-									<td class="column-4">
-										<div class="flex items-center justify-center">
-											<button class="btn-num-product-up flex items-center justify-center" data-action="increase" data-product-id="<%= item.productId._id %>" <%= item.quantity >= 5 ? 'disabled' : '' %>>
-												<i class="fs-16 zmdi zmdi-plus"></i>
-											</button>
-											<input class="mtext-104 cl3 txt-center num-product mx-2" type="number" name="quantity[<%= item.productId._id %>]" value="<%= item.quantity %>" readonly id="quantity-<%= item.productId._id %>" style="width: 60px;">
-											<button class="btn-num-product-down flex items-center justify-center" data-action="decrease" data-product-id="<%= item.productId._id %>">
-												<i class="fs-16 zmdi zmdi-minus"></i>
-											</button>
-										</div>
-									</td>
-									<td class="column-5" id="total-price-<%= item.productId._id %>"> <%= (item.price * item.quantity).toFixed(2) %></td>
-									<td>
-										<button type="button" class="btn btn-danger remove-item" data-product-id="<%= item.productId._id %>">
-											<i class="fs-16 zmdi zmdi-delete"></i> Remove
-										</button>
-									</td>
-								</tr>
-							<% }); %>
-						<% } else { %>
-							<tr>
-								<td colspan="5" class="text-center">Your cart is empty.</td>
-							</tr>
-						<% } %>
+<% if (typeof items !== 'undefined' && items.length > 0) { %>
+    <% items.forEach((item) => { %>
+        <% subtotal += item.price * item.quantity; %>
+        <tr class="table_row" id="product-row-<%= item.productId._id %>">
+            <td class="column-1">
+                <div class="how-itemcart1">
+                    <img src="<%= item.imageUrl %>" alt="<%= item.name %>">
+                </div>
+            </td>
+            <td class="column-2"><%= item.name %></td>
+            <td class="column-3" id="price-<%= item.productId._id %>"><%= item.price.toFixed(2) %></td>
+            <td class="column-4">
+                <div class="flex items-center justify-center">
+                    <button class="btn-num-product-up flex items-center justify-center" data-action="increase" data-product-id="<%= item.productId._id %>" <%= item.quantity >= 5 ? 'disabled' : '' %>>
+                        <i class="fs-16 zmdi zmdi-plus"></i>
+                    </button>
+                    <input class="mtext-104 cl3 txt-center num-product mx-2" type="number" name="quantity[<%= item.productId._id %>]" value="<%= item.quantity %>" readonly id="quantity-<%= item.productId._id %>" style="width: 60px;">
+                    <button class="btn-num-product-down flex items-center justify-center" data-action="decrease" data-product-id="<%= item.productId._id %>">
+                        <i class="fs-16 zmdi zmdi-minus"></i>
+                    </button>
+                </div>
+            </td>
+            <td class="column-5" id="total-price-<%= item.productId._id %>"> <%= (item.price * item.quantity).toFixed(2) %></td>
+            <td>
+                <button type="button" class="btn btn-danger remove-item" data-product-id="<%= item.productId._id %>">
+                    <i class="fs-16 zmdi zmdi-delete"></i> Remove
+                </button>
+            </td>
+        </tr>
+    <% }); %>
+<% } else { %>
+    <tr>
+        <td colspan="6" class="text-center">Your cart is empty.</td>
+    </tr>
+<% } %>
+
 					</table>
 				</div>
 	

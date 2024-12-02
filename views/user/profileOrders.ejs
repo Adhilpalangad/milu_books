@@ -360,7 +360,7 @@
                                                                             </strong>
                                                                         </td>
                                                                         
-                                                                        <% if ((order.status === 'pending' || order.status === 'paid') && !item.isCancelled) { %>
+                                                                        <% if ((order.status === 'pending' || order.status === 'paid' || order.paymentStatus =='paid') && !item.isCancelled && order.paymentStatus =='paid') { %>
                                                                             <td class="align-middle text-center p-2">
                                                                                 <button 
                                                                                     class="btn btn-danger btn-sm" 

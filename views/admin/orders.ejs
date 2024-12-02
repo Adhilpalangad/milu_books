@@ -99,32 +99,61 @@
                                                                     </button>
                                                                 </div>
                                                                 <div class="modal-body">
-                                                                    <p><strong>Customer Name:</strong> <%= order.userId.name %></p>
-                                                                    <p><strong>Order Date:</strong> <%= order.createdAt.toLocaleDateString() %></p>
-                                                                    <p><strong>Status:</strong> <%= order.status %></p>
-                                                                    <p><strong>Total Amount:</strong> ₹<%= order.total.toFixed(2) %></p>
-                                                                    
-                                                                    <h5>Delivery Address:</h5>
-                                                                    <p><strong>Full Name:</strong> <%= order.address.fullName %></p>
-                                                                    <p><strong>Street:</strong> <%= order.address.street %></p>
-                                                                    <p><strong>City:</strong> <%= order.address.city %></p>
-                                                                    <p><strong>State:</strong> <%= order.address.state %></p>
-                                                                    <p><strong>Country:</strong> <%= order.address.country %></p>
-                                                                    <p><strong>Postal Code:</strong> <%= order.address.postalCode %></p>
+                                                                    <div class="row">
+                                                                        <div class="col-md-4">
+                                                                            <div class="card text-white bg-primary mb-3">
+                                                                                <div class="card-header">
+                                                                                    <h5>Customer Information</h5>
+                                                                                </div>
+                                                                                <div class="card-body">
+                                                                                    <p><strong>Customer Name:</strong> <%= order.userId.name %></p>
+                                                                                    <p><strong>Order Date:</strong> <%= order.createdAt.toLocaleDateString() %></p>
+                                                                                    <p><strong>Status:</strong> 
+                                                                                        <span class="badge badge-warning" style="font-size: 1.1em;"><%= order.status %></span>
+                                                                                    </p>
+                                                                                    <p><strong>Total Amount:</strong> ₹<%= order.total.toFixed(2) %></p>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
                                                     
-                                                                    <h5>Items:</h5>
-                                                                    <ul>
-                                                                        <% order.items.forEach(function(item) { %>
-                                                                            <li>
-                                                                                <%= item.titleAtOrder %> x <%= item.quantity %> - ₹<%= item.priceAtOrder ? item.priceAtOrder.toFixed(2) : 'N/A' %> 
-                                                                                <% if (item.isCancelled) { %>
-                                                                                    <span class="badge badge-danger">Canceled</span>
-                                                                                <% } %>
-                                                                            </li>
-                                                                        <% }) %>
-                                                                        
-                                                                    </ul>
-                                                                    
+                                                                        <div class="col-md-4">
+                                                                            <div class="card text-white bg-success mb-3">
+                                                                                <div class="card-header">
+                                                                                    <h5>Delivery Address</h5>
+                                                                                </div>
+                                                                                <div class="card-body">
+                                                                                    <p><strong>Full Name:</strong> <%= order.address.fullName %></p>
+                                                                                    <p><strong>Street:</strong> <%= order.address.street %></p>
+                                                                                    <p><strong>City:</strong> <%= order.address.city %></p>
+                                                                                    <p><strong>State:</strong> <%= order.address.state %></p>
+                                                                                    <p><strong>Country:</strong> <%= order.address.country %></p>
+                                                                                    <p><strong>Postal Code:</strong> <%= order.address.postalCode %></p>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                    
+                                                                        <div class="col-md-4">
+                                                                            <div class="card text-dark bg-light mb-3">
+                                                                                <div class="card-header">
+                                                                                    <h5>Items</h5>
+                                                                                </div>
+                                                                                <div class="card-body">
+                                                                                    <ul class="list-group">
+                                                                                        <% order.items.forEach(function(item) { %>
+                                                                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                                                                <div>
+                                                                                                    <%= item.titleAtOrder %> x <%= item.quantity %> - ₹<%= item.priceAtOrder ? item.priceAtOrder.toFixed(2) : 'N/A' %>
+                                                                                                    <% if (item.isCancelled) { %>
+                                                                                                        <span class="badge badge-danger ml-2">Canceled</span>
+                                                                                                    <% } %>
+                                                                                                </div>
+                                                                                            </li>
+                                                                                        <% }) %>
+                                                                                    </ul>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                                 <div class="modal-footer">
                                                                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>

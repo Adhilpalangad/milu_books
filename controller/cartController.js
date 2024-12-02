@@ -88,7 +88,7 @@ const getCart = async (req, res) => {
         const cart = await Cart.findOne({ userId }).populate('items.productId');
 
         if (!cart) {
-            return res.render('user/cart', { items: [] });
+            return res.render('user/cart', { items: [] ,errorMessage:null});
         }
 
         const items = cart.items.map(item => {
@@ -101,7 +101,7 @@ const getCart = async (req, res) => {
                 total: item.productId.price * item.quantity 
             };
         })
-        res.render('user/cart', { items });
+        res.render('user/cart', { items,errorMessage:null });
     } catch (error) {
         console.log(error);
         res.status(500).send('Error fetching cart');
@@ -207,11 +207,11 @@ const getCartItems = async (req, res) => {
 
         if (!cart || cart.items.length === 0) {
             return req.xhr
-                ? res.json({ redirect: '/cart' })
-                : res.redirect('/cart');
+                ? res.json({ redirect: '/cart', items: [] })
+                : res.render('user/cart', { items: [], stockError: false, outOfStockItems: [] ,errorMessage:null});
         }
+        errorMessage:null
 
-        // **Check Stock Availability**
         const outOfStockItems = [];
         let stockError = false;
         for (let item of cart.items) {
@@ -229,7 +229,7 @@ const getCartItems = async (req, res) => {
         if (stockError) {
             return req.xhr
                 ? res.json({ stockError: true, outOfStockItems }) // For AJAX
-                : res.render('user/cart', { stockError: true, outOfStockItems }); // For navigation
+                : res.render('user/cart', { stockError: true, outOfStockItems,errorMessage:null}); // For navigation
         }
 
         // Map cart items for displaying
@@ -282,6 +282,7 @@ const getCartItems = async (req, res) => {
                 offerDiscount,
                 total,
                 addresses,
+                errorMessage:null
             });
         } else {
             return res.render('user/checkout', {
@@ -290,11 +291,16 @@ const getCartItems = async (req, res) => {
                 offerDiscount,
                 total,
                 addresses,
+                errorMessage:null
             });
         }
     } catch (error) {
         console.error('Error fetching cart items:', error);
-        return res.status(500).send('Internal server error');
+        return res.render('user/cart', {
+            items: [],
+            subtotal: 0,
+            errorMessage: 'An error occurred while loading the cart. Please try again later.',
+        });
     }
 };
 

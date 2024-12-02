@@ -38,7 +38,6 @@ const processCheckout = async (req, res) => {
         let offerDiscount = 0;
         const itemsToProcess = [];
 
-        // Fetch active offers
         const currentDate = new Date();
         const offers = await Offer.find({
             isActive: true,
@@ -46,7 +45,6 @@ const processCheckout = async (req, res) => {
             validUntil: { $gte: currentDate }
         });
 
-        // Calculate subtotal, check product stock, and apply offer discounts
         for (let item of cart.items) {
             const product = item.productId;
 
@@ -57,20 +55,16 @@ const processCheckout = async (req, res) => {
                 return res.status(400).send(`Not enough stock for ${product.title}`);
             }
 
-            // Accumulate subtotal
             subtotal += product.price * item.quantity;
 
-            // Check for applicable offers
             for (let offer of offers) {
                 const applicableProducts = offer.applicableProducts.map(id => id.toString());
                 const applicableCategories = offer.applicableCategories.map(id => id.toString());
 
-                // Check if the product is eligible for the offer (by product ID or category)
                 if (
                     applicableProducts.includes(product._id.toString()) || 
                     applicableCategories.includes(product.categoryId.toString())
                 ) {
-                    // Calculate the discount for this item
                     offerDiscount += (product.price * item.quantity * offer.discount) / 100;
                 }
             }
@@ -83,29 +77,24 @@ const processCheckout = async (req, res) => {
                 priceAtOrder: product.price // Snapshot of product price
             });
 
-            // Reduce stock for specific payment methods
             if (req.body.paymentMethod === 'cashOnDelivery' || req.body.paymentMethod === 'wallet') {
                 product.stock -= item.quantity;
             }
             await product.save();
         }
 
-        // Apply coupon logic (if any)
         let couponDiscount = 0; // Initialize couponDiscount
 
 if (req.body.couponCode) {
     const coupon = await Coupon.findOne({ code: req.body.couponCode, isActive: true });
 
     if (coupon && currentDate >= coupon.validFrom && currentDate <= coupon.validUntil && subtotal >= coupon.minOrderValue) {
-        // Calculate the coupon discount based on percentage
         couponDiscount = (subtotal * coupon.discount) / 100;
 
-        // Apply max discount limit if it exists
         if (coupon.maxDiscountLimit && couponDiscount > coupon.maxDiscountLimit) {
             couponDiscount = coupon.maxDiscountLimit;
         }
 
-        // Cap the discount if it exceeds 50% of the subtotal
         if (couponDiscount > subtotal / 2) {
             couponDiscount = subtotal / 2;
         }
@@ -113,20 +102,17 @@ if (req.body.couponCode) {
 }
 
         
-        // Calculate final totals after discounts
         const totalDiscount = offerDiscount + couponDiscount;
         const shippingCost = subtotal > 25 ? 0 : 5;
         const total = subtotal - totalDiscount + shippingCost;
         
 
-        // Deduct from wallet if applicable
         if (req.body.paymentMethod === 'wallet') {
             const wallet = await Wallet.findOne({ userId });
             if (!wallet || wallet.balance < total) {
                 return res.status(400).send('Insufficient wallet balance');
             }
 
-            // Deduct balance from wallet
             wallet.balance -= total;
             wallet.transactions.push({
                 amount: total,
@@ -136,7 +122,6 @@ if (req.body.couponCode) {
             await wallet.save();
         }
 
-        // Fetch or save the address
         let address;
         if (req.body.selectedAddress) {
             address = await Address.findById(req.body.selectedAddress);
@@ -144,7 +129,6 @@ if (req.body.couponCode) {
                 return res.status(400).send('Selected address not found');
             }
         } else {
-            // If no selected address, create a new one
             address = new Address({
                 userId,
                 fullName: req.body.fullName,
@@ -158,7 +142,6 @@ if (req.body.couponCode) {
             await address.save();
         }
 
-        // Create a new order in the database
         const newOrder = new Order({
             userId,
             items: itemsToProcess,
@@ -181,7 +164,6 @@ if (req.body.couponCode) {
 
         await newOrder.save();
 
-        // Create a Razorpay order if applicable
         const razorpayOrderOptions = {
             amount: total * 100, // Amount is in paise
             currency: 'INR',
@@ -190,14 +172,11 @@ if (req.body.couponCode) {
 
         const razorpayOrder = await razorpay.orders.create(razorpayOrderOptions);
 
-        // Update the order with the Razorpay order ID
         newOrder.razorpayOrderId = razorpayOrder.id;
         await newOrder.save();
 
-        // Clear the cart
         await Cart.deleteOne({ userId });
 
-        // Return Razorpay order details to the frontend
         res.json({
             orderId: razorpayOrder.id,
             amount: razorpayOrder.amount,

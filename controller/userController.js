@@ -191,9 +191,11 @@ const userLogin = async (req, res) => {
 
         // Validate password
         const isMatch = await bcrypt.compare(password, user.password);
-
+        console.log("is match is ", isMatch);
+        
         if (!isMatch) {
             // Password does not match
+            
             return res.render('user/login', { error: 'Invalid email or password.', message: "" });
         }
 
@@ -425,18 +427,25 @@ const getProducts = async (req, res) => {
 
 //product details
 
+
 const getProductDetail = async (req, res) => {
     try {
         const productId = req.params.id; 
+
         if (!mongoose.isValidObjectId(productId)) {
-            return res.status(400).json({ message: "Bad request" });
+            return res.status(400).render('404', { message: "Bad request: Invalid product ID" });
         }
 
         const product = await Book.findOne({ _id: productId, isActive: true }).populate('categoryId');
 
+        if (!product) {
+            return res.status(404).render('404', { message: 'Product not found' });
+        }
+
         const offers = await Offer.find({ isActive: true });
 
         let discountedPrice = null;
+
         offers.forEach(offer => {
             const isProductEligible = offer.applicableProducts.includes(product._id);
             const isCategoryEligible = offer.applicableCategories.includes(product.categoryId?.name);
@@ -448,20 +457,16 @@ const getProductDetail = async (req, res) => {
 
         const productWithOffer = {
             ...product.toObject(),
-            discountedPrice: discountedPrice || product.price, // Use discounted price if applicable, otherwise original price
-            hasDiscount: !!discountedPrice // Boolean to check if discount was applied
+            discountedPrice: discountedPrice || product.price,
+            hasDiscount: !!discountedPrice
         };
 
-        if (!product) {
-            return res.status(404).send('Product not found');
-        }
-
-        const products = await Book.find({isActive:true}); // Fetch other products if needed
+        const products = await Book.find({ isActive: true });
 
         res.render('user/product-details', { product: productWithOffer, products });
     } catch (error) {
         console.error(error);
-        res.status(500).send('Server error');
+        res.status(500).render('404', { message: 'Server error' });
     }
 };
 

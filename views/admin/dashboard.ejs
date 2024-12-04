@@ -47,7 +47,7 @@
                         <div class="card">
                             <div class="card-body">
                                 <h5>Total Revenue</h5>
-                                <h3 id="totalRevenue">$0.00</h3>
+                                <h3 id="totalRevenue">₹0.00</h3>
                             </div>
                         </div>
                     </div>
@@ -114,7 +114,7 @@
     
                 // Updating Summary Cards
                 document.getElementById('totalSalesCount').innerText = salesSummary.totalSalesCount || 0;
-                document.getElementById('totalRevenue').innerText = `$${(salesSummary.totalRevenue || 0).toFixed(2)}`;
+                document.getElementById('totalRevenue').innerText = `₹${(salesSummary.totalRevenue || 0).toFixed(2)}`;
                 document.getElementById('totalUsers').innerText = totalUsers || 0;
     
                 // Updating Charts

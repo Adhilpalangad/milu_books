@@ -524,8 +524,8 @@ const createCoupon = async (req, res) => {
         return res.redirect(`/admin/getCreateCoupon?error=Please+fill+in+all+fields&code=${code || ''}&discount=${discount || ''}&minOrderValue=${minOrderValue || ''}&validFrom=${validFrom || ''}&validUntil=${validUntil || ''}`);
     }
     
-    if (discount <= 0 || discount > 100) {
-        return res.redirect(`/admin/getCreateCoupon?error=Discount+should+be+between+1+and+100&code=${code}&discount=${discount}&minOrderValue=${minOrderValue}&validFrom=${validFrom}&validUntil=${validUntil}`);
+    if (discount <= 0 || discount > 50) {
+        return res.redirect(`/admin/getCreateCoupon?error=Discount+should+be+between+1+and+50&code=${code}&discount=${discount}&minOrderValue=${minOrderValue}&validFrom=${validFrom}&validUntil=${validUntil}`);
     }
     
     if (minOrderValue <= 0) {

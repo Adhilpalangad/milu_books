@@ -123,7 +123,7 @@
                                                     <tr>
                                                         <td>${report.OrderId}</td>
                                                         <td>${report.userId.name}</td>
-                                                        <td>$${report.total.toFixed(2)}</td>
+                                                        <td>₹${report.total.toFixed(2)}</td>
                                                         <td>${report.deliveredAt ? new Date(report.deliveredAt).toLocaleDateString() : 'N/A'}</td>
                                                         <td><div class="badge ${getStatusBadgeClass(report.status)}">${report.status}</div></td>
                                                     </tr>

@@ -53,7 +53,7 @@
                                                         <tr>
                                                             <td><%= coupon.code %></td>
                                                             <td><%= coupon.discount %>%</td>
-                                                            <td>$<%= coupon.minOrderValue %></td>
+                                                            <td>₹<%= coupon.minOrderValue %></td>
                                                             <td><%= new Date(coupon.validFrom).toLocaleDateString() %></td>
                                                             <td><%= new Date(coupon.validUntil).toLocaleDateString() %></td>
                                                             <td><%= coupon.isActive ? 'Active' : 'Inactive' %></td>

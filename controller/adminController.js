@@ -880,76 +880,57 @@ const getDeliveredSalesReport = async (req, res) => {
 
 const approveReturnRequest = async (req, res) => {
     const { orderId } = req.params;
+    const { itemId } = req.body; 
 
     try {
-        // Fetch the order and its populated items
         const order = await Order.findById(orderId).populate('items.productId');
         if (!order) return res.status(404).send('Order not found');
 
-        if (order.returnStatus !== 'requested') return res.status(400).send('Return request is not pending');
+        const item = order.items.find(item => item._id.toString() === itemId);
+        if (!item) return res.status(404).send('Item not found');
+        if (item.returnStatus !== 'requested') return res.status(400).send('Return request is not pending for this item');
 
-        // Update return status to approved and set returned date
-        order.returnStatus = 'approved';
-        order.returnedAt = new Date();
-        order.status = 'returned';
-        await order.save();
+        
+        item.returnStatus = 'approved';
+        item.isReturned = true;
 
-        // Calculate the original discount percentage based on the initial subtotal
+        if (item.returnReason !== 'Damaged') {
+            await Book.findByIdAndUpdate(item.productId._id, { $inc: { stock: item.quantity } });
+        }
+
         const originalSubtotal = order.items.reduce((sum, item) => sum + item.priceAtOrder * item.quantity, 0);
         const originalDiscount = order.discount || 0;
         const discountPercentage = originalDiscount / originalSubtotal;
 
-        // Recalculate the new subtotal after return
-        const updatedSubtotal = order.items.reduce((sum, item) => {
-            if (!item.isCancelled) {
-                return sum + item.priceAtOrder * item.quantity;
-            }
-            return sum;
-        }, 0);
+        const itemDiscount = (item.priceAtOrder * item.quantity / originalSubtotal) * originalDiscount;
+        const refundAmount = item.priceAtOrder * item.quantity - itemDiscount; 
 
-        // Calculate the new discount based on the remaining items
-        const updatedDiscount = updatedSubtotal * discountPercentage; // Proportional discount
+        const remainingItems = order.items.filter(item => !item.isReturned); 
+        const updatedSubtotal = remainingItems.reduce((sum, item) => sum + item.priceAtOrder * item.quantity, 0);
+        const updatedDiscount = updatedSubtotal * discountPercentage; 
+        const updatedTotal = Math.max(0, updatedSubtotal + order.shipping - updatedDiscount); 
 
-        // Recalculate the total after return
-        const updatedTotal = Math.max(0, updatedSubtotal + order.shipping - updatedDiscount); // Ensure total is not negative
-
-        // Update the order with new discount and total
         order.subtotal = updatedSubtotal;
         order.discount = updatedDiscount;
         order.total = updatedTotal;
 
-        // If the reason is 'Product Damage', don't update the stock, else increase the stock for the returned items
-        if (order.returnReason === 'Damaged') {
-            // If the product is damaged, don't update the stock
-        } else {
-            // Otherwise, for all other return reasons, increase the stock
-            for (const item of order.items) {
-                const productId = item.productId; // This could be populated or just the ObjectId
-
-                // Ensure productId is an ObjectId, if populated access _id directly
-                const productIdToUpdate = productId._id ? productId._id : productId;
-
-                // Update the stock by incrementing the quantity of returned items
-                await Book.findByIdAndUpdate(productIdToUpdate, { $inc: { stock: item.quantity } });
-            }
-        }
-
-        // Handle wallet credit for paid orders (refund)
-        if (order.paymentStatus === 'paid' && order.paymentMethod !== 'cashOnDelivery') {
+        if ((order.paymentStatus === 'paid' && order.paymentMethod !== 'cashOnDelivery') || order.paymentMethod === 'wallet') {
             let wallet = await Wallet.findOne({ userId: order.userId });
             if (!wallet) wallet = await Wallet.create({ userId: order.userId });
-            wallet.balance += order.total;
+
+            wallet.balance += refundAmount; 
             wallet.transactions.push({
-                amount: order.total,
+                amount: refundAmount,
                 transactionType: 'credit',
                 orderId: order._id,
-                message: `${order.total} credited for returned order`
+                message: `${refundAmount.toFixed(2)} credited for returned product`,
             });
             await wallet.save();
         }
 
-        // Redirect to admin orders after approval
-        res.redirect('/admin/orders');
+        await order.save();
+
+        res.redirect('/admin/orders'); // Redirect to admin orders page
     } catch (error) {
         console.error(error);
         res.status(500).send('Server error');
@@ -957,41 +938,33 @@ const approveReturnRequest = async (req, res) => {
 };
 
 
+
+
 const rejectReturnRequest = async (req, res) => {
     const { orderId } = req.params;
+    const { itemId } = req.body;  
 
     try {
         const order = await Order.findById(orderId).populate('items.productId');
         if (!order) return res.status(404).send('Order not found');
 
-        if (order.returnStatus !== 'requested') return res.status(400).send('Return request is not pending');
-
-        // If the return reason was 'Product Damage', revert the stock change
-        if (order.returnReason === 'Product Damage') {
-            for (const item of order.items) {
-                await Book.findByIdAndUpdate(item.productId._id, { $inc: { stock: -item.quantity } });
-            }
-        }
+        const item = order.items.find(item => item._id.toString() === itemId);
+        if (!item) return res.status(404).send('Item not found');
+        if (item.returnStatus !== 'requested') return res.status(400).send('Return request is not pending for this item');
 
         // Reset return status and reason
-        order.returnStatus = 'rejected'; // Or set it back to 'delivered', depending on your logic
-        order.returnReason = ''; // Clear the reason
-        await order.save();
+        item.returnStatus = null;
+        item.returnReason = null;
 
-        // Handle reverting any wallet transactions (if any were made during approval)
-        if (order.paymentMethod !== 'cashOnDelivery') {
-            let wallet = await Wallet.findOne({ userId: order.userId });
-            if (wallet) {
-                wallet.balance -= order.total;
-                // Remove the last transaction related to this order
-                wallet.transactions = wallet.transactions.filter(
-                    (transaction) => transaction.orderId.toString() !== order._id.toString()
-                );
-                await wallet.save();
-            }
+        // If the product was marked as damaged, revert stock change
+        if (item.returnReason === 'Damaged') {
+            await Book.findByIdAndUpdate(item.productId._id, { $inc: { stock: -item.quantity } });
         }
 
-        res.redirect('/admin/orders'); // Redirect to admin orders after rejection
+        // Save the updated order
+        await order.save();
+
+        res.redirect('/admin/orders'); // Redirect to admin orders page
     } catch (error) {
         console.error(error);
         res.status(500).send('Server error');

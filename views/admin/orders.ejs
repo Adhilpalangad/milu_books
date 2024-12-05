@@ -39,7 +39,7 @@
                                                 <th>Product</th>
                                                 <th>Quantity</th>
                                                 <th>Status</th>
-                                                <th>Action</th>
+                                                <th>Order Action</th>
                                                 <th>View</th>
 
                                             </tr>
@@ -59,17 +59,24 @@
                                                             </div>
                                                         </td>
                                                         <td>
-                                                            <!-- Eye Button -->
-                                                            
-                                                            <% if (order.returnStatus === 'requested') { %>
-                                                                <form action="/admin/orders/<%= order._id %>/return/approve" method="POST" class="inline">
-                                                                    <button type="submit" class="text-green-600 hover:text-green-800">Approve</button>
-                                                                </form>
-                                                                <form action="/admin/orders/<%= order._id %>/return/reject" method="POST" class="inline">
-                                                                    <button type="submit" class="text-red-600 hover:text-red-800">Reject</button>
-                                                                </form>
-                                                                <p>Reason: <%= order.returnReason %></p>
-                                                            <% } else { %>
+                                                            <% order.items.forEach((item) => { %>
+                                                                <% if (item.returnStatus === 'requested') { %>
+                                                                    <!-- Approve and Reject buttons for each return request -->
+                                                                    <form action="/admin/orders/<%= order._id %>/return/approve" method="POST" class="inline">
+                                                                        <input type="hidden" name="itemId" value="<%= item._id %>" />
+                                                                        <button type="submit" class="text-green-600 hover:text-green-800">Approve</button>
+                                                                    </form>
+                                                                    <form action="/admin/orders/<%= order._id %>/return/reject" method="POST" class="inline">
+                                                                        <input type="hidden" name="itemId" value="<%= item._id %>" />
+                                                                        <button type="submit" class="text-red-600 hover:text-red-800">Reject</button>
+                                                                    </form>
+                                                                    <p>Product: <%= item.titleAtOrder %></p>
+                                                                    <p>Reason: <%= item.returnReason %></p>
+                                                                <% } %>
+                                                            <% }) %>
+                                                        
+                                                            <% if (!order.items.some(item => item.returnStatus === 'requested')) { %>
+                                                                <!-- Show order status form if no item has a return request -->
                                                                 <form action="/admin/orders/<%= order._id %>/status" method="POST" class="order-status-form">
                                                                     <input type="hidden" name="_method" value="PUT">
                                                                     <select name="status" onchange="confirmStatusChange(this)">
@@ -77,10 +84,15 @@
                                                                         <option value="shipped" <%= order.status === 'shipped' ? 'selected' : '' %>>Shipped</option>
                                                                         <option value="delivered" <%= order.status === 'delivered' ? 'selected' : '' %>>Delivered</option>
                                                                         <option value="cancelled" <%= order.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+                                                                        <option value="paid" <%= order.status === 'paid' ? 'selected' : '' %>>Paid</option>
                                                                     </select>
                                                                 </form>
                                                             <% } %>
+                                                            
+                                                            
                                                         </td>
+                                                        
+                                                        
                                                         <td>
                                                             <button type="button" class="btn btn-sm btn-info" data-toggle="modal" data-target="#orderModal<%= order._id %>">
                                                                 <i class="fas fa-eye"></i>

@@ -252,6 +252,29 @@ const validateCoupon = async (req, res) => {
     }
 }
 
+const getAvailableCoupons = async (req, res) => {
+    try {
+        const coupons = await Coupon.find({ isActive: true });
+
+        if (!coupons || coupons.length === 0) {
+            return res.status(404).json({ message: 'No coupons available' });
+        }
+
+        // Map required fields only (e.g., code and description)
+        const availableCoupons = coupons.map(coupon => ({
+            code: coupon.code,
+            description: `${coupon.discount}% OFF - Min Order ₹${coupon.minOrderValue}`
+        }));
+
+        res.json({ coupons: availableCoupons });
+    } catch (error) {
+        console.error('Error fetching coupons:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+// Add this route to your router
+
 
 
 
@@ -271,24 +294,20 @@ const verifyPayment = async (req, res) => {
                 return res.status(404).send('Order not found');
             }
 
-            // Update the order status to 'paid' after successful payment verification
-            order.status = 'paid';  // Mark order as paid
-            order.razorpayPaymentId = razorpay_payment_id;  // Store the Razorpay payment ID
-            order.razorpaySignature = razorpay_signature;  // Store the Razorpay signature
-            order.paymentStatus = 'paid';  // Set the payment status to 'paid'
-            await order.save();  // Save the updated order
+            order.status = 'paid';  
+            order.razorpayPaymentId = razorpay_payment_id;  
+            order.razorpaySignature = razorpay_signature;  
+            order.paymentStatus = 'paid';  
+            await order.save();  
 
-            // Deduct stock from the products in the order
             for (let item of order.items) {
                 const product = await Book.findById(item.productId);
                 if (product) {
-                    // Reduce stock by the quantity purchased
                     product.stock -= item.quantity;
                     await product.save();  // Save the updated product
                 }
             }
 
-            // Respond with the updated order information
             return res.json({
                 message: 'Payment verified successfully, order is now paid.',
                 orderId: order._id,
@@ -357,99 +376,99 @@ const getOrders = async (req, res) => {
 
  // Adjust the path according to your structure
 
- const cancelOrder = async (req, res) => {
-    const { orderId, productId } = req.params;
+    const cancelOrder = async (req, res) => {
+        const { orderId, productId } = req.params;
 
-    try {
-        // Fetch the order and ensure it exists
-        const order = await Order.findById(orderId).populate('items.productId');
+        try {
+            // Fetch the order and ensure it exists
+            const order = await Order.findById(orderId).populate('items.productId');
 
-        if (!order) {
-            return res.status(404).send('Order not found');
-        }
-
-        // Find the specific item to cancel
-        const itemToCancel = order.items.find(item => item.productId._id.toString() === productId);
-
-        if (!itemToCancel) {
-            return res.status(404).send('Product not found in order');
-        }
-
-        // Mark the product as canceled
-        itemToCancel.isCancelled = true;
-        itemToCancel.cancelledAt = new Date(); // Mark the cancellation timestamp
-
-        // Update stock for the canceled product
-        await Book.findByIdAndUpdate(productId, {
-            $inc: { stock: itemToCancel.quantity }
-        });
-
-        // Calculate the original discount percentage based on the initial subtotal
-        const originalSubtotal = order.items.reduce((sum, item) => sum + item.priceAtOrder * item.quantity, 0);
-        const originalDiscount = order.discount || 0;
-        const discountPercentage = originalDiscount / originalSubtotal;
-
-        // Recalculate the new subtotal after cancellation
-        const updatedSubtotal = order.items.reduce((sum, item) => {
-            if (!item.isCancelled) {
-                return sum + item.priceAtOrder * item.quantity; // Use priceAtOrder for calculations
-            }
-            return sum;
-        }, 0);
-
-        // Calculate the new discount based on the remaining items
-        const updatedDiscount = updatedSubtotal * discountPercentage; // Proportional discount
-
-        // Recalculate the total
-        const updatedTotal = Math.max(0, updatedSubtotal + order.shipping - updatedDiscount); // Ensure total is not negative
-
-        // Update the order object
-        order.subtotal = updatedSubtotal;
-        order.discount = updatedDiscount; // Updated discount
-        order.total = updatedTotal; // Updated total
-
-        // If all items are canceled, update order status to canceled
-        if (order.items.every(item => item.isCancelled)) {
-            order.status = 'cancelled';
-            order.cancelledAt = new Date();
-        }
-
-        await order.save();
-
-        // Wallet operations for non-COD payments
-        if (order.paymentMethod !== 'cashOnDelivery') {
-            const itemDiscount = (itemToCancel.priceAtOrder * itemToCancel.quantity / originalSubtotal) * originalDiscount;
-            const refundAmount = itemToCancel.priceAtOrder * itemToCancel.quantity - itemDiscount;
-
-            let wallet = await Wallet.findOne({ userId: order.userId });
-            if (!wallet) {
-                wallet = await Wallet.create({ userId: order.userId });
+            if (!order) {
+                return res.status(404).send('Order not found');
             }
 
-            wallet.balance += refundAmount;
-            wallet.transactions.push({
-                amount: refundAmount,
-                transactionType: 'credit',
-                orderId: orderId,
-                message: `Refund for canceled product: ${itemToCancel.titleAtOrder}`
+            // Find the specific item to cancel
+            const itemToCancel = order.items.find(item => item.productId._id.toString() === productId);
+
+            if (!itemToCancel) {
+                return res.status(404).send('Product not found in order');
+            }
+
+            // Mark the product as canceled
+            itemToCancel.isCancelled = true;
+            itemToCancel.cancelledAt = new Date(); // Mark the cancellation timestamp
+
+            // Update stock for the canceled product
+            await Book.findByIdAndUpdate(productId, {
+                $inc: { stock: itemToCancel.quantity }
             });
 
-            await wallet.save();
+            // Calculate the original discount percentage based on the initial subtotal
+            const originalSubtotal = order.items.reduce((sum, item) => sum + item.priceAtOrder * item.quantity, 0);
+            const originalDiscount = order.discount || 0;
+            const discountPercentage = originalDiscount / originalSubtotal;
+
+            // Recalculate the new subtotal after cancellation
+            const updatedSubtotal = order.items.reduce((sum, item) => {
+                if (!item.isCancelled) {
+                    return sum + item.priceAtOrder * item.quantity; // Use priceAtOrder for calculations
+                }
+                return sum;
+            }, 0);
+
+            // Calculate the new discount based on the remaining items
+            const updatedDiscount = updatedSubtotal * discountPercentage; // Proportional discount
+
+            // Recalculate the total
+            const updatedTotal = Math.max(0, updatedSubtotal + order.shipping - updatedDiscount); // Ensure total is not negative
+
+            // Update the order object
+            order.subtotal = updatedSubtotal;
+            order.discount = updatedDiscount; // Updated discount
+            order.total = updatedTotal; // Updated total
+
+            // If all items are canceled, update order status to canceled
+            if (order.items.every(item => item.isCancelled)) {
+                order.status = 'cancelled';
+                order.cancelledAt = new Date();
+            }
+
+            await order.save();
+
+            // Wallet operations for non-COD payments
+            if (order.paymentMethod !== 'cashOnDelivery') {
+                const itemDiscount = (itemToCancel.priceAtOrder * itemToCancel.quantity / originalSubtotal) * originalDiscount;
+                const refundAmount = itemToCancel.priceAtOrder * itemToCancel.quantity - itemDiscount;
+
+                let wallet = await Wallet.findOne({ userId: order.userId });
+                if (!wallet) {
+                    wallet = await Wallet.create({ userId: order.userId });
+                }
+
+                wallet.balance += refundAmount;
+                wallet.transactions.push({
+                    amount: refundAmount,
+                    transactionType: 'credit',
+                    orderId: orderId,
+                    message: `Refund for canceled product: ${itemToCancel.titleAtOrder}`
+                });
+
+                await wallet.save();
+            }
+
+            res.redirect('/profile/orders');
+        } catch (error) {
+            console.error(error);
+            res.status(500).send('Server error');
         }
-
-        res.redirect('/profile/orders');
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Server error');
-    }
-};
+    };
 
 
 
 
-const returnOrderRequest = async (req, res) => {
-    const { orderId } = req.params;
-    const { reason } = req.body; // Capture reason from the form
+const returnProductRequest = async (req, res) => {
+    const { orderId, productId } = req.params;
+    const { reason } = req.body; // Reason captured from the form
 
     try {
         const order = await Order.findById(orderId);
@@ -457,18 +476,15 @@ const returnOrderRequest = async (req, res) => {
 
         if (order.status !== 'delivered') return res.status(400).send('Only delivered orders can be returned');
 
-        // Create a return request by updating the returnReason and setting returnStatus to 'pending'
-        order.returnReason = reason;
-        order.returnStatus = 'requested';
-        await order.save();
+        const productToReturn = order.items.find(item => item.productId.toString() === productId);
+        if (!productToReturn) return res.status(404).send('Product not found in this order');
 
-        // If the reason is 'Product Damage', update the stock of the product
-        if (reason === 'Product Damage') {
-            // Update stock for each item in the order
-            for (const item of order.items) {
-                await Book.findByIdAndUpdate(item.productId._id, { $inc: { stock: item.quantity } });
-            }
-        }
+        if (productToReturn.isReturned) return res.status(400).send('Product has already been returned');
+
+        productToReturn.returnReason = reason;
+        productToReturn.returnStatus = 'requested';
+
+        await order.save();
 
         res.redirect('/profile/orders'); // Redirect after saving the request
     } catch (error) {
@@ -488,11 +504,7 @@ const getPersonal = async (req, res) => {
         if (!userId) {
             return res.status(401).send('User not authenticated');
         }
-
-      
         const user = await User.findById(userId);
-
-       
         const addresses = await Address.find({ userId: userId });
         const currentUrl = req.url;
        
@@ -651,7 +663,7 @@ const generateInvoicePDF = async (
     doc.fontSize(10)
       .font("Helvetica")
       .text("Subtotal:", summaryLabelX, summaryStartY)
-      .text(`$${order.total.toFixed(2)}`, summaryValueX, summaryStartY);
+      .text(`$${order.subtotal.toFixed(2)}`, summaryValueX, summaryStartY);
   
     doc.text("Shipping:", summaryLabelX, summaryStartY + 20)
       .text(`$${order.shipping || 0}`, summaryValueX, summaryStartY + 20);
@@ -664,7 +676,7 @@ const generateInvoicePDF = async (
     drawHorizontalLine(summaryStartY + 60);
   
     // Final total calculation
-    const finalTotal = order.total - (order.discount || 0) + (order.shipping || 0);
+    const finalTotal = order.total
     doc.fontSize(12)
       .font("Helvetica-Bold")
       .text("Total:", summaryLabelX, summaryStartY + 70)
@@ -726,6 +738,37 @@ const retryPayment = async (req, res) => {
     }
 }
 
+const addNewAddress = async (req, res) => {
+    const { userId, fullName, street, city, state, country, postalCode } = req.body;
+
+    try {
+        // Validate address data
+        if (!fullName || !street || !city || !state || !country || !postalCode) {
+            return res.status(400).json({ error: 'All fields are required.' });
+        }
+
+        // Create a new address document
+        const newAddress = new Address({
+            userId, // The user to associate the address with
+            fullName,
+            street,
+            city,
+            state,
+            country,
+            postalCode,
+        });
+
+        // Save the new address
+        await newAddress.save();
+
+        // Respond with the newly added address
+        res.json({ success: true, address: newAddress });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
 
 const setDefaultAddress = async (req, res) => {
     const { id } = req.params; // Address ID to mark as default
@@ -753,11 +796,13 @@ module.exports = {
     orderPlaced,
     verifyPayment,
     validateCoupon,
-    returnOrderRequest,
+    returnProductRequest,
     getInvoice,
     updateOrderStatus,
     retryPayment,
     paymentFailed,
     walletBalance,
-    setDefaultAddress
+    setDefaultAddress,
+    getAvailableCoupons, 
+    addNewAddress
 };

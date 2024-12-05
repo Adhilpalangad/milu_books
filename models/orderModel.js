@@ -10,7 +10,11 @@ const orderSchema = new mongoose.Schema({
             isCancelled: { type: Boolean, default: false }, // New field to track canceled status
             cancelledAt: { type: Date }, // Optional: Timestamp when canceled
             titleAtOrder: { type: String, required: true }, // Snapshot of product title
-            priceAtOrder: { type: Number, required: true } // Snapshot of product price
+            priceAtOrder: { type: Number, required: true },
+            returnReason: { type: String }, 
+            returnStatus: { type: String, enum: ['pending', 'approved', 'rejected', 'requested'], default: 'pending' }, // Return status
+            returnedAt: { type: Date },// Snapshot of product price
+            isReturned:{ type: Boolean, default: false },
         }
     ],
     address: {
@@ -31,10 +35,7 @@ const orderSchema = new mongoose.Schema({
     deliveredAt: { type: Date },
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
-    razorpaySignature: { type: String },
-    returnReason: { type: String }, 
-    returnStatus: { type: String, enum: ['pending', 'approved', 'rejected', 'requested'], default: 'pending' }, // Return status
-    returnedAt: { type: Date }, // Date when return was approved
+    razorpaySignature: { type: String }, // Date when return was approved
     paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' }
 }, { timestamps: true });
 

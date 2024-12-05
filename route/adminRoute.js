@@ -47,8 +47,8 @@ router.route('/downloadSalesReport')
   .get(adminAuth,adminController.downloadSalesReport)
   .post(adminAuth,adminController.downloadSalesReport);
 router.post('/filterSalesReport',adminAuth,adminController.filterSalesReport)
-  router.post('/orders/:orderId/return/approve',adminAuth,adminController.approveReturnRequest); // Admin approval
-router.post('/orders/:orderId/return/reject',adminAuth, adminController.rejectReturnRequest);  
+router.post('/orders/:orderId/return/approve', adminAuth, adminController.approveReturnRequest);
+router.post('/orders/:orderId/return/reject', adminAuth, adminController.rejectReturnRequest); 
 router.get('/home',adminAuth, adminController.renderDashboard);
 
 router.get('/dashboard-data',adminAuth, adminController.getDashboardData);

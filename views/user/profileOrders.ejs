@@ -239,9 +239,7 @@
 <% if (order.status === 'delivered' && order.returnStatus !== 'requested' && order.returnStatus !== 'approved') { %>
     <% if (isReturnAllowed) { %>
         <!-- Trigger Modal for Return Request -->
-        <button data-toggle="modal" data-target="#returnModal<%= order._id %>" class="text-blue-600 hover:text-blue-800">
-            Request Return ||
-        </button>
+        
     <% } else { %>
         <!-- Disabled Button -->
         <button class="text-gray-400" disabled>
@@ -339,8 +337,10 @@
                                                                         <td class="align-middle p-2">
                                                                             <h6 class="mb-1">
                                                                                 <%= item.titleAtOrder %>
-                                                                                <% if (item.isCancelled) { %>
-                                                                                    <span class="badge badge-danger ml-2">Canceled</span>
+                                                                                <% if (item.isReturned) { %>
+                                                                                    <span class="badge badge-success ml-2">Returned</span>
+                                                                                <% } else if (item.isCancelled) { %>
+                                                                                    <span class="badge badge-danger ml-2">Cancelled</span>
                                                                                 <% } %>
                                                                             </h6>
                                                                             <small class="text-muted">
@@ -348,38 +348,97 @@
                                                                                 Price: ₹<%= item.priceAtOrder ? item.priceAtOrder.toFixed(2) : '0.00' %>
                                                                             </small>
                                                                         </td>
-                                                                        
                                                                         <td class="align-middle text-right p-2">
-                                                                            <% if (order.discount && order.discount > 0) { %>
-                                                                                <div class="text-success">
-                                                                                    
-                                                                                </div>
-                                                                            <% } %>
                                                                             <strong>
                                                                                 ₹<%= (item.isCancelled ? 0 : (item.priceAtOrder - discountAmount || 0)).toFixed(2) %>
                                                                             </strong>
                                                                         </td>
-                                                                        
-                                                                        <% if ((order.status === 'pending' || order.status === 'paid' || order.paymentStatus =='paid') && !item.isCancelled && order.paymentStatus =='paid') { %>
+                                                                        <% if (order.status === 'delivered' && !item.isReturned && item.isCancelled == false) { %>
                                                                             <td class="align-middle text-center p-2">
-                                                                                <button 
-                                                                                    class="btn btn-danger btn-sm" 
-                                                                                    onclick="cancelOrderItem('<%= order._id %>', '<%= item.productId._id %>')"
-                                                                                >
-                                                                                    Cancel
-                                                                                </button>
+                                                                                <% if (item.returnStatus === 'requested') { %>
+                                                                                    <!-- If return is requested, display the reason -->
+                                                                                    <button class="btn btn-warning btn-sm" disabled>
+                                                                                        Return Requested
+                                                                                    </button>
+                                                                                    <p>Reason: <%= item.returnReason %></p>
+                                                                                <% } else { %>
+                                                                                    <!-- Button to trigger return modal if not requested -->
+                                                                                    <button 
+                                                                                        class="btn btn-warning btn-sm" 
+                                                                                        data-toggle="modal" 
+                                                                                        data-target="#returnRequestModal<%= order._id %>_<%= item.productId._id %>">
+                                                                                        Request Return
+                                                                                    </button>
+                                                                                <% } %>
                                                                             </td>
-                                                                        <% } else if (!item.isCancelled) { %>
-                                                                            <!-- If item is cancelled, don't display the Cancel button at all -->
+                                                                        <% } else { %>
                                                                             <td class="align-middle text-center p-2">
-                                                                                <button 
-                                                                                    class="btn btn-secondary btn-sm" 
-                                                                                    disabled
-                                                                                >
-                                                                                    Cancel
-                                                                                </button>
+                                                                                <button class="btn btn-secondary btn-sm" disabled>Return Not Available</button>
                                                                             </td>
                                                                         <% } %>
+                                                                        
+                                                                        
+                                                                        <div class="modal fade" id="returnRequestModal<%= order._id %>_<%= item.productId._id %>" tabindex="-1" role="dialog" aria-labelledby="returnRequestModalLabel<%= order._id %>_<%= item.productId._id %>" aria-hidden="true">
+                                                                            <div class="modal-dialog modal-dialog-centered" role="document">
+                                                                                <div class="modal-content">
+                                                                                    <div class="modal-header">
+                                                                                        <h5 class="modal-title" id="returnRequestModalLabel<%= order._id %>_<%= item.productId._id %>">
+                                                                                            Request Return: <%= item.titleAtOrder %>
+                                                                                        </h5>
+                                                                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                                                            <span aria-hidden="true">&times;</span>
+                                                                                        </button>
+                                                                                    </div>
+                                                                                    <form action="/orders/return/<%= order._id %>/<%= item.productId._id %>" method="POST">
+                                                                                        <div class="modal-body">
+                                                                                            <div class="form-group">
+                                                                                                <label for="returnReason<%= order._id %>_<%= item.productId._id %>">Reason for Return</label>
+                                                                                                <select 
+                                                                                                    class="form-control" 
+                                                                                                    id="returnReason<%= order._id %>_<%= item.productId._id %>" 
+                                                                                                    name="reason" 
+                                                                                                    required>
+                                                                                                    <option value="damaged">Damaged</option>
+                                                                                                    <option value="wrongItem">Wrong Item</option>
+                                                                                                    <option value="defective">Defective</option>
+                                                                                                    <option value="other">Other</option>
+                                                                                                </select>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div class="modal-footer">
+                                                                                            <button type="submit" class="btn btn-primary">Submit Request</button>
+                                                                                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                                                                        </div>
+                                                                                    </form>
+                                                                                    
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        
+                                                                        <% if ((order.status === 'pending' || order.status === 'paid') &&
+                                                                                order.paymentStatus === 'paid' &&
+                                                                                order.status !== 'delivered' &&
+                                                                                !item.isCancelled
+                                                                        ) { %>
+                                                                        <td class="align-middle text-center p-2">
+                                                                            <button 
+                                                                            class="btn btn-danger btn-sm" 
+                                                                            onclick="cancelOrderItem('<%= order._id %>', '<%= item.productId._id %>')"
+                                                                            >
+                                                                            Cancel
+                                                                            </button>
+                                                                        </td>
+                                                                        <% } else if (!item.isCancelled) { %>
+                                                                        <td class="align-middle text-center p-2">
+                                                                            <button 
+                                                                            class="btn btn-secondary btn-sm" 
+                                                                            disabled
+                                                                        >
+                                                                            Cancel
+                                                                            </button>
+                                                                        </td>
+                                                                        <% } %>
+
                                                                                                                                           
                                                                     </tr>
                                                                 <% }) %>

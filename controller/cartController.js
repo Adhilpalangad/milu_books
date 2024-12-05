@@ -282,7 +282,8 @@ const getCartItems = async (req, res) => {
                 offerDiscount,
                 total,
                 addresses,
-                errorMessage:null
+                errorMessage: null,
+                userId
             });
         } else {
             return res.render('user/checkout', {
@@ -291,7 +292,8 @@ const getCartItems = async (req, res) => {
                 offerDiscount,
                 total,
                 addresses,
-                errorMessage:null
+                errorMessage: null,
+                userId
             });
         }
     } catch (error) {

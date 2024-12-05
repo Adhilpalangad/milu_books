@@ -252,6 +252,50 @@ align-items: center; /* Center the image and text vertically */
 margin-right: 0.5rem; /* Add some margin to the right for spacing */
 }
 </style>
+<div class="modal fade" id="addAddressModal" tabindex="-1" role="dialog" aria-labelledby="addAddressModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addAddressModalLabel">Add New Address</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="newAddressForm">
+                    <div class="form-group">
+                        <label for="newFullName">Full Name</label>
+                        <input type="text" class="form-control" id="newFullName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newStreet">Street Address</label>
+                        <input type="text" class="form-control" id="newStreet" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newCity">City</label>
+                        <input type="text" class="form-control" id="newCity" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newState">State</label>
+                        <input type="text" class="form-control" id="newState" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newCountry">Country</label>
+                        <input type="text" class="form-control" id="newCountry" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPostalCode">Postal Code</label>
+                        <input type="text" class="form-control" id="newPostalCode" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveNewAddress()">Save Address</button>
+            </div>
+        </div>
+    </div>
+</div>
     <div class="container" style="margin-top: 80px;">
         <h2>Checkout</h2>
         
@@ -336,7 +380,79 @@ margin-right: 0.5rem; /* Add some margin to the right for spacing */
                         <input type="hidden" id="country" name="country" required>
                         <input type="hidden" id="postalCode" name="postalCode" required>
                 
-                
+                        <button type="button" class="btn btn-secondary" data-toggle="modal" data-target="#addAddressModal">
+                            Add New Address
+                        </button>
+<!-- Modal to Add New Address -->
+
+<script>
+    // Function to handle saving the new address and adding it to the form
+        
+    async function saveNewAddress() {
+    const newFullName = document.getElementById('newFullName').value;
+    const newStreet = document.getElementById('newStreet').value;
+    const newCity = document.getElementById('newCity').value;
+    const newState = document.getElementById('newState').value;
+    const newCountry = document.getElementById('newCountry').value;
+    const newPostalCode = document.getElementById('newPostalCode').value;
+
+    const userId = '<%= userId %>';  // Assume user ID is available on the server-side.
+
+    try {
+        // Send the new address data to the backend via POST request
+        const response = await fetch('/profile/addressess', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                userId,
+                fullName: newFullName,
+                street: newStreet,
+                city: newCity,
+                state: newState,
+                country: newCountry,
+                postalCode: newPostalCode
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Address saved successfully, add the address to the dropdown
+            const newAddressOption = document.createElement('option');
+            newAddressOption.value = result.address._id;
+            newAddressOption.text = `${newFullName}: ${newStreet}, ${newCity}, ${newState}, ${newCountry}, ${newPostalCode}`;
+            document.getElementById('addressSelect').appendChild(newAddressOption);
+
+            // Automatically select the new address after saving
+            document.getElementById('addressSelect').value = result.address._id;
+
+            // Set the hidden inputs with the selected address information
+            document.getElementById('selectedAddress').value = result.address._id;
+            document.getElementById('fullName').value = newFullName;
+            document.getElementById('street').value = newStreet;
+            document.getElementById('city').value = newCity;
+            document.getElementById('state').value = newState;
+            document.getElementById('country').value = newCountry;
+            document.getElementById('postalCode').value = newPostalCode;
+
+            // Close the modal
+            $('#addAddressModal').modal('hide');
+
+            // Submit the checkout form after address is saved
+            document.getElementById('checkoutForm').submit();  // Automatically submit the order form
+        } else {
+            alert('Failed to save address.');
+        }
+    } catch (error) {
+        console.error(error);
+        alert('An error occurred while saving the address.');
+    }
+}
+
+</script>
+                        
                         <h4 class="mt-4">Payment Method</h4>
                         <div class="form-group">
                             <div class="form-check">
@@ -431,10 +547,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                              
                         
                         <div class="form-group mt-3">
-                            <label for="couponCode">Coupon Code</label>
-                            <input type="text" id="couponCode" name="couponCode" class="form-control" placeholder="Enter coupon code">
+                            <label for="couponCode">Available Coupons</label>
+                            <select id="couponCode" name="couponCode" class="form-control" style="height: calc(2.25rem + 8px)">
+                                <option value="" disabled selected>Select a coupon</option>
+                            </select>
                             <button type="button" id="couponButton" class="btn btn-secondary mt-2" onclick="toggleCoupon()">Apply Coupon</button>
                         </div>
+                        
                 
                         <button type="submit" class="btn btn-success" id="payment-button">Place Order</button>
                     </form>
@@ -445,7 +564,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function handlePayment(e) {
     e.preventDefault();
-
+    console.log("going to here");
+    
     // Collect form data as a FormData object
     let formData = new FormData(document.querySelector("#checkoutForm"));
 
@@ -605,8 +725,32 @@ async function handlePayment(e) {
             //=========================script for coupon========================
             let subtotal = <%= subtotal %>; // Set subtotal from server-side code
 let couponApplied = false;
-let discountedTotal = subtotal; // Initialize discountedTotal with the initial subtotal
+let discountedTotal = subtotal;
 
+// Fetch available coupons on page load
+async function fetchCoupons() {
+    const response = await fetch('/getAvailableCoupons');
+    const data = await response.json();
+    const couponSelect = document.getElementById('couponCode');
+
+    if (response.ok) {
+        data.coupons.forEach(coupon => {
+            const option = document.createElement('option');
+            option.value = coupon.code;
+            option.textContent = `${coupon.code} - ${coupon.description}`;
+            couponSelect.appendChild(option);
+        });
+    } else {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error fetching coupons',
+            text: data.message || 'Please try again later.',
+            confirmButtonText: 'OK'
+        });
+    }
+}
+
+// Apply or remove coupon
 function toggleCoupon() {
     if (!couponApplied) {
         applyCoupon();
@@ -618,6 +762,16 @@ function toggleCoupon() {
 async function applyCoupon() {
     const couponCode = document.getElementById('couponCode').value;
 
+    if (!couponCode) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'No Coupon Selected',
+            text: 'Please select a coupon to apply.',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+
     const response = await fetch('/validateCoupon', {
         method: 'POST',
         headers: {
@@ -627,10 +781,11 @@ async function applyCoupon() {
     });
 
     const data = await response.json();
-    if (response.ok && data.total !== undefined) {
-        discountedTotal = data.total * 100; // Convert to paise
-        document.getElementById('totalAmount').innerText = `₹${(discountedTotal / 100).toFixed(2)}`;
-        document.getElementById('discountAmount').innerText = `- ₹${(data.discount).toFixed(2)}`;
+
+    if (response.ok) {
+        discountedTotal = data.total; // Update total with discounted total
+        document.getElementById('totalAmount').innerText = `₹${discountedTotal.toFixed(2)}`;
+        document.getElementById('discountAmount').innerText = `- ₹${data.discount.toFixed(2)}`;
         document.getElementById('couponButton').innerText = "Remove Coupon";
         couponApplied = true;
 
@@ -644,20 +799,18 @@ async function applyCoupon() {
         Swal.fire({
             icon: 'error',
             title: 'Invalid Coupon',
-            text: data.message || 'Please try a valid coupon code.',
+            text: data.message || 'Please try a valid coupon.',
             confirmButtonText: 'OK'
         });
-
         document.getElementById('totalAmount').innerText = `₹${subtotal.toFixed(2)}`;
         document.getElementById('discountAmount').innerText = '- ₹0';
     }
 }
 
 function removeCoupon() {
-    discountedTotal = subtotal * 100; // Reset to original subtotal
+    discountedTotal = subtotal; // Reset total to original subtotal
     document.getElementById('totalAmount').innerText = `₹${subtotal.toFixed(2)}`;
     document.getElementById('discountAmount').innerText = '- ₹0';
-    document.getElementById('couponCode').value = '';
     document.getElementById('couponButton').innerText = "Apply Coupon";
     couponApplied = false;
 
@@ -668,6 +821,9 @@ function removeCoupon() {
         confirmButtonText: 'OK'
     });
 }
+
+// Load available coupons on page load
+document.addEventListener('DOMContentLoaded', fetchCoupons);
 
         //=========================script for adddress========================
        

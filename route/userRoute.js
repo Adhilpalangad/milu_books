@@ -73,7 +73,8 @@ router.post('/wishlistAdd/:id',userAuth,userController.addBooksWishlist)
 router.post('/wishlist/remove/:id',userAuth, userController.removeWishlist)
 router.post('/addtocart/wishlist',userAuth, cartController.addToCartFromWishlist)
 router.get('/wallet',userAuth, userController.getWallet)
-router.post('/orders/return/:orderId',userAuth, checkoutController.returnOrderRequest); // User return request
+router.post('/orders/return/:orderId/:productId', userAuth, checkoutController.returnProductRequest);
+
 router.get('/orders/:orderId/invoice',userAuth,checkoutController.getInvoice)
 router.put('/update-order-status/:orderId',userAuth,checkoutController.updateOrderStatus)
 router.get('/order-details/:orderId',userAuth,checkoutController.retryPayment)
@@ -81,6 +82,6 @@ router.get('/contact',userAuth, userController.contactPage)
 router.get('/about',userAuth, userController.aboutPage)
 router.post('/cart/addProducts/:productId', userAuth, cartController.addToCart); 
 router.post('/addresses/default/:id',userAuth, checkoutController.setDefaultAddress);
-
-
+router.get('/getAvailableCoupons',userAuth, checkoutController.getAvailableCoupons);
+router.post('/profile/addressess', userAuth, checkoutController.addNewAddress);
 module.exports = router;
